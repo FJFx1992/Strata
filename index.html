@@ -1229,8 +1229,11 @@ window.addEventListener("touchend", endLookTouch);
 window.addEventListener("touchcancel", endLookTouch);
 
 canvas.addEventListener("click", () => {
-  if (document.pointerLockElement !== canvas) {
-    canvas.requestPointerLock();
+  if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+    try {
+      const p = canvas.requestPointerLock();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (err) { console.error("requestPointerLock unavailable:", err); }
   }
 });
 
