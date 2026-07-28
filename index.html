@@ -103,6 +103,11 @@
     font-size:10px; color:#a0e0ff; pointer-events:none; letter-spacing:.5px;
     font-family: monospace;
   }
+  #resources{
+    position:absolute; top:86px; left:14px; padding:8px 12px;
+    font-size:11px; color:#e8ecf1; pointer-events:none; letter-spacing:.5px;
+  }
+  #resources b{ color:var(--accent); }
 
   #topRight{ position:absolute; top:14px; right:14px; display:flex; gap:8px; pointer-events:auto; }
   .iconBtn{
@@ -120,6 +125,7 @@
   #hotbar{
     position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; gap:6px; padding:6px; pointer-events:auto;
+    max-width:96vw; overflow-x:auto;
   }
   .slot{
     width:52px; height:52px; position:relative; cursor:pointer;
@@ -238,6 +244,7 @@
 <div id="hud">
   <div id="crosshair"><div class="h"></div><div class="v"></div></div>
   <div id="coords" class="panel">X <b id="cx">0</b>  Y <b id="cy">0</b>  Z <b id="cz">0</b></div>
+  <div id="resources" class="panel">⛏ <b id="rCoal">0</b>  💰 <b id="rGold">0</b></div>
   <div id="debugAxes" class="panel">Stick R: X:<span id="dbgX">0.00</span> Y:<span id="dbgY">0.00</span></div>
   <div id="topRight">
     <div id="invBtn" class="iconBtn round accent">🎒</div>
@@ -300,14 +307,15 @@
     <b>Build:</b> L2 / Left Click / ▦ Button<br>
     <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
     <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
-    <b>Inventory:</b> E / 🎒 Button
+    <b>Inventory:</b> E / 🎒 Button<br>
+    <b>New:</b> Dig for caves &amp; ore, place torches for light
   </div>
   <button id="playBtn" class="panel">▶ PLAY</button>
   <button id="mpBtn" class="menuBtn panel">🌐 MULTIPLAYER</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/playroomkit/multiplayer.full.umd.js" crossorigin="anonymous"></script>
+<!-- Playroom SDK is now loaded on-demand only when Multiplayer is chosen (see loadPlayroomScript). -->
 <script>
 "use strict";
 
@@ -320,7 +328,7 @@ const MOVE_SPEED = 4.4;
 const CYCLE_SECONDS = 260;
 let WORLD_SEED = 0; // set for real in initMultiplayer()
 
-const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass"];
+const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass","coalore","goldore","torch"];
 
 // Remappable keyboard controls (movement and look are excluded - those stay on WASD/mouse).
 const DEFAULT_BINDINGS = {
@@ -356,6 +364,19 @@ function noise2D(x, y) {
   const v01 = hash2(xi, yi + 1), v11 = hash2(xi + 1, yi + 1);
   const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
   return (v00 * (1 - u) + v10 * u) * (1 - v) + (v01 * (1 - u) + v11 * u) * v;
+}
+function hash3(x, y, z) {
+  const s = Math.sin(x * 127.1 + y * 269.5 + z * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+function noise3D(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = x - xi, yf = y - yi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+  const c = (dx, dy, dz) => hash3(xi + dx, yi + dy, zi + dz);
+  const x00 = c(0,0,0)*(1-u)+c(1,0,0)*u, x10 = c(0,1,0)*(1-u)+c(1,1,0)*u;
+  const x01 = c(0,0,1)*(1-u)+c(1,0,1)*u, x11 = c(0,1,1)*(1-u)+c(1,1,1)*u;
+  return (x00*(1-v)+x10*v)*(1-w) + (x01*(1-v)+x11*v)*w;
 }
 function terrainHeight(x, z) {
   const sx = x + WORLD_SEED, sz = z + WORLD_SEED;
@@ -434,6 +455,21 @@ function buildTextures() {
     g.addColorStop(1, "rgba(255,220,140,0)");
     ctx.fillStyle = g; ctx.fillRect(0,0,32,32);
   });
+  texCanvases.coalore = makeCanvas(S, (ctx) => {
+    noisyFill(ctx, S, [130, 130, 132], 20, 21);
+    ctx.fillStyle = "rgba(20,20,20,.85)";
+    for (let i = 0; i < 8; i++) ctx.fillRect((hash2(i, 101) * S) | 0, (hash2(i, 202) * S) | 0, 2, 2);
+  });
+  texCanvases.goldore = makeCanvas(S, (ctx) => {
+    noisyFill(ctx, S, [130, 130, 132], 20, 31);
+    ctx.fillStyle = "rgba(255,205,60,.9)";
+    for (let i = 0; i < 7; i++) ctx.fillRect((hash2(i, 303) * S) | 0, (hash2(i, 404) * S) | 0, 2, 2);
+  });
+  texCanvases.torch = makeCanvas(S, (ctx) => {
+    ctx.fillStyle = "#6b4226"; ctx.fillRect(6, 6, 4, 9);
+    ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(8, 5, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff2b0"; ctx.beginPath(); ctx.arc(8, 4, 1.4, 0, 7); ctx.fill();
+  });
   texCanvases.sand = makeCanvas(S, (ctx) => noisyFill(ctx, S, [223, 204, 150], 18, 11));
   texCanvases.brick = makeCanvas(S, (ctx) => {
     noisyFill(ctx, S, [150, 60, 46], 16, 12);
@@ -472,7 +508,7 @@ window.addEventListener('resize', handleResize);
 
 const hemi = new THREE.HemisphereLight(0xbfe3f5, 0x3a2e20, 0.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(40, 60, 20); scene.add(sun);
-scene.add(new THREE.AmbientLight(0x404040, 0.25));
+scene.add(new THREE.AmbientLight(0x404040, 0.14));
 
 function three_tex(canvasEl) {
   const t = new THREE.CanvasTexture(canvasEl);
@@ -496,9 +532,14 @@ const MATERIALS = {
   leaves:[faceMat(TEX.leaves,0.9), faceMat(TEX.leaves,0.9), faceMat(TEX.leaves,0.95), faceMat(TEX.leaves,0.8), faceMat(TEX.leaves,0.9), faceMat(TEX.leaves,0.9)],
   sand:  [faceMat(TEX.sand,SIDE), faceMat(TEX.sand,SIDE), faceMat(TEX.sand,TOP), faceMat(TEX.sand,BOT), faceMat(TEX.sand,SIDE), faceMat(TEX.sand,SIDE)],
   brick: [faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,TOP), faceMat(TEX.brick,BOT), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE)],
-  glass: (() => { const m = new THREE.MeshLambertMaterial({ map: TEX.glass, transparent: true, opacity: 0.55 }); return [m,m,m,m,m,m]; })()
+  glass: (() => { const m = new THREE.MeshLambertMaterial({ map: TEX.glass, transparent: true, opacity: 0.55 }); return [m,m,m,m,m,m]; })(),
+  coalore: [faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,TOP), faceMat(TEX.coalore,BOT), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE)],
+  goldore: [faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,TOP), faceMat(TEX.goldore,BOT), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE)]
 };
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const torchGeo = new THREE.BoxGeometry(0.15, 0.55, 0.15);
+const torchMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
+let torchObjects = [];
 
 const world = new Map();
 
@@ -509,7 +550,18 @@ function genWorld() {
     for (let z = 0; z < SIZE; z++) {
       const h = terrainHeight(x, z);
       for (let y = 0; y <= h; y++) {
+        // Leave a solid crust near the surface (top 4 layers) and bedrock (y=0)
+        // untouched, so caves never break the ground you're standing on.
+        if (y > 0 && y < h - 3) {
+          const cave = noise3D((x + WORLD_SEED) * 0.13, y * 0.18, (z + WORLD_SEED) * 0.13);
+          if (cave > 0.63) continue; // carve out open cave air
+        }
         let type = y === 0 ? "stone" : y === h ? "grass" : y >= h - 3 ? "dirt" : "stone";
+        if (type === "stone" && y > 0 && y < h - 3) {
+          const ore = hash2(x * 5.3 + y * 13.7 + WORLD_SEED, z * 7.1 - y * 3.3 + WORLD_SEED);
+          if (y < 6 && ore > 0.985) type = "goldore";
+          else if (ore > 0.95) type = "coalore";
+        }
         world.set(key(x, y, z), type);
       }
       if (hash2(x * 3.1 + 5 + WORLD_SEED, z * 7.7 + 5 + WORLD_SEED) > 0.965) {
@@ -545,8 +597,9 @@ const instancedMeshes = {};
 function rebuildMeshes() {
   for (const t in instancedMeshes) { if (instancedMeshes[t]) scene.remove(instancedMeshes[t]); instancedMeshes[t] = null; }
   const buckets = {};
-  BLOCK_TYPES.forEach(t => buckets[t] = []);
+  BLOCK_TYPES.forEach(t => { if (t !== "torch") buckets[t] = []; });
   for (const [k, type] of world) {
+    if (type === "torch") continue;
     const p = k.split(",");
     const x = +p[0], y = +p[1], z = +p[2];
     if (isSolid(x+1,y,z) && isSolid(x-1,y,z) && isSolid(x,y+1,z) && isSolid(x,y-1,z) && isSolid(x,y,z+1) && isSolid(x,y,z-1)) continue;
@@ -566,6 +619,28 @@ function rebuildMeshes() {
     scene.add(mesh);
     instancedMeshes[type] = mesh;
   }
+  rebuildTorches();
+}
+// Torches aren't full cubes and each needs its own light, so they're kept
+// out of the instanced-cube system above and rebuilt as small individual
+// meshes + point lights whenever the world changes.
+function rebuildTorches() {
+  try {
+    torchObjects.forEach(t => { scene.remove(t.mesh); scene.remove(t.light); });
+    torchObjects = [];
+    for (const [k, type] of world) {
+      if (type !== "torch") continue;
+      const p = k.split(",");
+      const x = +p[0] + 0.5, y = +p[1], z = +p[2] + 0.5;
+      const mesh = new THREE.Mesh(torchGeo, torchMat);
+      mesh.position.set(x, y + 0.28, z);
+      scene.add(mesh);
+      const light = new THREE.PointLight(0xffaa55, 1.1, 7, 2);
+      light.position.set(x, y + 0.45, z);
+      scene.add(light);
+      torchObjects.push({ mesh, light });
+    }
+  } catch (err) { console.error("rebuildTorches failed:", err); }
 }
 // rebuildMeshes() initial call also deferred to initMultiplayer().
 
@@ -696,15 +771,25 @@ document.getElementById("muteBtn").addEventListener("pointerdown", (e) => {
   } catch (err) { console.error("mute toggle failed:", err); }
 });
 
+let resources = { coalore: 0, goldore: 0 };
+function updateResourceHUD() {
+  document.getElementById("rCoal").textContent = resources.coalore;
+  document.getElementById("rGold").textContent = resources.goldore;
+}
+
 let selectedBlockIdx = 0;
 let selectedBlock = BLOCK_TYPES[selectedBlockIdx];
 const hotbarEl = document.getElementById("hotbar");
-const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass" };
+const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass", coalore: "coalore", goldore: "goldore", torch: "torch" };
 
+let lastNonTorchIdx = 0;
 function selectBlockByIndex(idx) {
-  selectedBlockIdx = (idx + BLOCK_TYPES.length) % BLOCK_TYPES.length;
-  selectedBlock = BLOCK_TYPES[selectedBlockIdx];
-  document.querySelectorAll(".slot").forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+  try {
+    selectedBlockIdx = (idx + BLOCK_TYPES.length) % BLOCK_TYPES.length;
+    selectedBlock = BLOCK_TYPES[selectedBlockIdx];
+    if (selectedBlock !== "torch") lastNonTorchIdx = selectedBlockIdx;
+    document.querySelectorAll(".slot").forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+  } catch (err) { console.error("selectBlockByIndex failed:", err); }
 }
 
 BLOCK_TYPES.forEach((type, i) => {
@@ -795,16 +880,15 @@ function moveHorizontal(axis, delta) {
   player.pos.y = oldY;
 }
 
-// Finds a spawn Y that is guaranteed clear of solid blocks (e.g. a tree that
-// generated on the spawn tile) and has solid ground directly beneath it, so
-// the player never spawns embedded in terrain (which is what "stuck on
-// spawn" actually is - collision can't push you out of a block you start
-// inside of). Scans from bedrock up so it works no matter what's built there.
+// Finds a spawn Y at or above the natural surface (never inside an
+// underground cave), scanning upward past anything solid - e.g. a tree -
+// until it finds a real 2-block gap to stand in.
 function findClearSpawnY(x, z) {
-  for (let y = 1; y < MAXY + 8; y++) {
-    if (!isSolid(x, y, z) && !isSolid(x, y + 1, z) && isSolid(x, y - 1, z)) return y;
+  const groundH = terrainHeight(x, z);
+  for (let y = groundH + 1; y < MAXY + 8; y++) {
+    if (!isSolid(x, y, z) && !isSolid(x, y + 1, z)) return y;
   }
-  return terrainHeight(x, z) + 4;
+  return groundH + 4;
 }
 
 const player = {
@@ -984,40 +1068,62 @@ function breakBlock() {
   if (!currentTarget) return;
   const { x, y, z } = currentTarget.hit;
   if (y === 0) return;
+  const minedType = world.get(key(x, y, z));
   world.delete(key(x, y, z));
   playBreak();
   rebuildMeshes();
   if (mpRPC) mpRPC.call("block", { op: "b", x, y, z }, mpRPC.Mode.OTHERS);
+  if (resources.hasOwnProperty(minedType)) {
+    resources[minedType]++;
+    updateResourceHUD();
+  }
 }
 
 function placeBlock() {
-  if (!currentTarget) return;
-  const { x, y, z } = currentTarget.prev;
-  if (x < 0 || z < 0 || x >= SIZE || z >= SIZE || y < 0 || y >= MAXY) return;
-  const feetCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y), z: Math.floor(player.pos.z) };
-  const headCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y + player.height * 0.9), z: Math.floor(player.pos.z) };
-  if ((x === feetCell.x && y === feetCell.y && z === feetCell.z) || (x === headCell.x && y === headCell.y && z === headCell.z)) return;
-  if (world.has(key(x, y, z))) return;
-  world.set(key(x, y, z), selectedBlock);
-  playPlace();
-  rebuildMeshes();
-  if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: selectedBlock }, mpRPC.Mode.OTHERS);
+  try {
+    if (!currentTarget) return;
+    const { x, y, z } = currentTarget.prev;
+    if (x < 0 || z < 0 || x >= SIZE || z >= SIZE || y < 0 || y >= MAXY) return;
+    const feetCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y), z: Math.floor(player.pos.z) };
+    const headCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y + player.height * 0.9), z: Math.floor(player.pos.z) };
+    if ((x === feetCell.x && y === feetCell.y && z === feetCell.z) || (x === headCell.x && y === headCell.y && z === headCell.z)) return;
+    if (world.has(key(x, y, z))) return;
+    const placedType = selectedBlock;
+    world.set(key(x, y, z), placedType);
+    playPlace();
+    rebuildMeshes();
+    if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: placedType }, mpRPC.Mode.OTHERS);
+    if (placedType === "torch") selectBlockByIndex(lastNonTorchIdx);
+  } catch (err) { console.error("placeBlock failed:", err); }
 }
 
 /* ---------- Multiplayer (Playroom - hosted relay, no server needed) ---------- */
 let mpRPC = null, mpMyPlayer = null, mpActive = false;
 const remotePlayers = {};
+function loadPlayroomScript() {
+  return new Promise((resolve) => {
+    if (typeof Playroom !== "undefined") { resolve(true); return; }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/playroomkit/multiplayer.full.umd.js";
+    s.crossOrigin = "anonymous";
+    s.onload = () => resolve(typeof Playroom !== "undefined");
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
 async function initMultiplayer() {
-  if (typeof Playroom === "undefined") { WORLD_SEED = Math.random() * 4000; return; }
-  const { insertCoin, isHost, myPlayer, onPlayerJoin, getState, setState, RPC } = Playroom;
-  try { await insertCoin({ maxPlayersPerRoom: 12 }); }
-  catch (err) { WORLD_SEED = Math.random() * 4000; return; }
-  mpActive = true; mpRPC = RPC; mpMyPlayer = myPlayer;
-  if (isHost()) { WORLD_SEED = Math.random() * 4000; setState("worldSeed", WORLD_SEED); }
-  else {
-    while (getState("worldSeed") === undefined) await new Promise(r => setTimeout(r, 150));
-    WORLD_SEED = getState("worldSeed");
-  }
+  try {
+    const ok = await loadPlayroomScript();
+    if (!ok) { WORLD_SEED = Math.random() * 4000; return; }
+    const { insertCoin, isHost, myPlayer, onPlayerJoin, getState, setState, RPC } = Playroom;
+    try { await insertCoin({ maxPlayersPerRoom: 12 }); }
+    catch (err) { console.error("insertCoin failed:", err); WORLD_SEED = Math.random() * 4000; return; }
+    mpActive = true; mpRPC = RPC; mpMyPlayer = myPlayer;
+    if (isHost()) { WORLD_SEED = Math.random() * 4000; setState("worldSeed", WORLD_SEED); }
+    else {
+      while (getState("worldSeed") === undefined) await new Promise(r => setTimeout(r, 150));
+      WORLD_SEED = getState("worldSeed");
+    }
   RPC.register("block", (data) => {
     if (data.op === "b") world.delete(key(data.x, data.y, data.z));
     else world.set(key(data.x, data.y, data.z), data.t);
@@ -1031,6 +1137,11 @@ async function initMultiplayer() {
     remotePlayers[p.id] = { mesh, p };
     p.onQuit(() => { scene.remove(mesh); delete remotePlayers[p.id]; });
   });
+  } catch (err) {
+    console.error("initMultiplayer failed, falling back to solo:", err);
+    mpActive = false; mpRPC = null;
+    if (!WORLD_SEED) WORLD_SEED = Math.random() * 4000;
+  }
 }
 /* ---------- End multiplayer ---------- */
 
@@ -1266,6 +1377,30 @@ document.getElementById("resetBindingsBtn").addEventListener("click", (e) => {
 });
 /* ---------- End pause menu & control remapping ---------- */
 
+function showErrorToast(msg) {
+  let el = document.getElementById("errToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "errToast";
+    el.style.cssText = "position:fixed;left:50%;bottom:130px;transform:translateX(-50%);max-width:90vw;background:#3a1010;color:#fff;padding:10px 16px;border:2px solid #a33;font-family:monospace;font-size:11px;z-index:999;border-radius:4px;pointer-events:none;white-space:pre-wrap;";
+    document.body.appendChild(el);
+  }
+  el.textContent = "⚠ " + msg;
+  el.style.display = "block";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = "none"; }, 9000);
+}
+window.addEventListener("error", (e) => {
+  const msg = (e.error && (e.error.stack || e.error.message)) || e.message || "unknown error";
+  console.error("Uncaught error:", msg, e.filename, e.lineno, e.colno);
+  showErrorToast(msg + (e.filename ? ` @ ${e.filename}:${e.lineno}` : ""));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = (e.reason && (e.reason.stack || e.reason.message)) || String(e.reason);
+  console.error("Unhandled rejection:", msg);
+  showErrorToast("Promise: " + msg);
+});
+
 window.addEventListener("keydown", (e) => {
   if (awaitingBindingFor) {
     if (!e.repeat) captureBinding(e.code);
@@ -1311,8 +1446,8 @@ function updateDayNight(dt) {
   const skyColor = new THREE.Color().lerpColors(NIGHT, DAY, day);
   scene.background = skyColor;
   scene.fog.color = skyColor;
-  sun.intensity = 0.15 + day * 0.95;
-  hemi.intensity = 0.25 + day * 0.55;
+  sun.intensity = 0.08 + day * 1.02;
+  hemi.intensity = 0.14 + day * 0.66;
   starMat.opacity = clamp(1 - day * 1.3, 0, 0.9);
 }
 
@@ -1367,6 +1502,8 @@ let netTimer = 0;
 
 async function startGame(useMultiplayer) {
   document.getElementById("startScreen").style.display = "none";
+  initAudio();
+  const audioReady = actx.state === "suspended" ? actx.resume() : Promise.resolve();
   if (useMultiplayer) { await initMultiplayer(); }
   else { WORLD_SEED = Math.random() * 4000; }
   genWorld();
@@ -1375,9 +1512,8 @@ async function startGame(useMultiplayer) {
   const spawnY = findClearSpawnY(spawnX, spawnZ);
   player.pos.set(spawnX + 0.5, spawnY, spawnZ + 0.5);
   player.vel.set(0, 0, 0);
-  initAudio();
-  if (actx.state === "suspended") { actx.resume().then(startAmbientMusic); }
-  else { startAmbientMusic(); }
+  await audioReady;
+  startAmbientMusic();
   started = true;
   handleResize();
   lastTime = performance.now();
