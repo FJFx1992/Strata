@@ -57,7 +57,7 @@
     position:fixed; inset:0; z-index:50;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     background: radial-gradient(ellipse at 50% 20%, #3a6ea8 0%, #16233a 60%, #0a0e17 100%);
-    text-align:center; padding:24px; gap:22px;
+    text-align:center; padding:24px; gap:16px; overflow-y:auto;
   }
   #logo{
     font-family:var(--font-d); color:#fff; font-size:clamp(28px,8vw,54px);
@@ -65,7 +65,7 @@
     text-shadow: 4px 4px 0 var(--accent-dark), 8px 8px 0 rgba(0,0,0,.5);
   }
   #logo span{ color:var(--good); }
-  #tagline{ font-family:var(--font-d); color:var(--sky2); font-size:11px; letter-spacing:1px; }
+  #tagline{ font-family:var(--font-d); color:var(--sky2); font-size:11px; letter-spacing:1px; margin-bottom:6px; }
   #playBtn{
     font-family:var(--font-d); font-size:16px; color:var(--ink);
     padding:16px 34px; cursor:pointer; letter-spacing:1px;
@@ -75,11 +75,15 @@
     border-top-color:#ffe3a3; border-left-color:#ffe3a3;
     border-bottom-color:var(--accent-dark); border-right-color:var(--accent-dark);
   }
-  #instructions{
-    font-size:12px; color:#cfd8e3; max-width:480px; line-height:1.8;
-    font-family:var(--font-b);
+  #startButtons{
+    display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:4px;
   }
-  #instructions b{ color:var(--accent); }
+  #startButtons .menuBtn{ font-size:11px; }
+  .helpText{
+    font-size:12px; color:#cfd8e3; max-width:440px; line-height:1.8;
+    font-family:var(--font-b); text-align:left;
+  }
+  .helpText b{ color:var(--accent); }
 
   #hud{ position:fixed; inset:0; z-index:20; pointer-events:none; }
   #crosshair{
@@ -168,6 +172,7 @@
   #btnPlace{ color:#245a2e; }
 
   #muteBtn.off{ color:#a33; }
+  #fullscreenBtn.active{ color:#1f5a7a; }
 
   body.paused #game{ cursor:default; }
 
@@ -175,6 +180,15 @@
     position:fixed; inset:0; z-index:40; display:none;
     align-items:center; justify-content:center;
     background:rgba(8,11,18,.72); pointer-events:auto; padding:20px;
+  }
+  #howToScreen{
+    position:fixed; inset:0; z-index:55; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(8,11,18,.82); pointer-events:auto; padding:20px;
+  }
+  #howToPanel{
+    padding:26px 28px; display:flex; flex-direction:column; align-items:center; gap:16px;
+    max-width:92vw; max-height:88vh; overflow-y:auto;
   }
   #pausePanel, #controlsPanel{
     padding:28px 30px; display:flex; flex-direction:column; align-items:center; gap:16px;
@@ -294,6 +308,7 @@
     <div class="menuTitle">OPTIONS</div>
     <button id="touchToggleBtn" class="menuBtn panel">TOUCH CONTROLS: ON</button>
     <div class="menuHint">Hides the on-screen joystick and jump/mine/build buttons - handy if you're using a keyboard or controller.</div>
+    <button id="fullscreenBtnOptions" class="menuBtn panel" style="display:none;">⛶ FULLSCREEN</button>
     <button id="optionsBackBtn" class="menuBtn panel">◀ BACK</button>
   </div>
 </div>
@@ -310,24 +325,34 @@
 <div id="startScreen">
   <div id="logo">STRA<span>TA</span></div>
   <div id="tagline">Universal & Steam Deck Web Edition</div>
-  <div class="menuHint" style="max-width:480px;margin-top:-8px;">Multiplayer: hit Play, create a room, then share the invite link so friends on any Wi-Fi or mobile data can join your world.</div>
-  <div id="instructions">
-    <b>Controls:</b><br>
-    <b>Move:</b> Left Stick (Axes 0 & 1) / WASD<br>
-    <b>Look:</b> Right Stick (Axes 2 & 3) / Trackpad / Pointer Lock / Touch Drag<br>
-    <b>Jump:</b> A Button / Space / ⤒ Button<br>
-    <b>Mine:</b> R2 / Right Click / ⛏ Button<br>
-    <b>Build:</b> L2 / Left Click / ▦ Button<br>
-    <b>Open/Close Door:</b> Aim at a door and use the Build action<br>
-    <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
-    <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
-    <b>Inventory:</b> E / 🎒 Button<br>
-    <b>New:</b> Dig for caves &amp; ore, place torches for light, build doors you can open
-  </div>
   <input id="playerNameInput" class="panel" type="text" maxlength="16" placeholder="Your name" style="font-family:var(--font-b);font-size:14px;color:#fff;background:var(--panel-dark);text-align:center;padding:10px;width:200px;outline:none;">
   <button id="playBtn" class="panel">▶ PLAY</button>
-  <button id="continueBtn" class="menuBtn panel" style="display:none;">📂 CONTINUE</button>
-  <button id="mpBtn" class="menuBtn panel">🌐 MULTIPLAYER</button>
+  <div id="startButtons">
+    <button id="continueBtn" class="menuBtn panel" style="display:none;">📂 CONTINUE</button>
+    <button id="mpBtn" class="menuBtn panel">🌐 MULTIPLAYER</button>
+    <button id="howToBtn" class="menuBtn panel">❓ HOW TO PLAY</button>
+    <button id="fullscreenBtn" class="menuBtn panel" style="display:none;">⛶ FULLSCREEN</button>
+  </div>
+</div>
+
+<div id="howToScreen">
+  <div id="howToPanel" class="panel">
+    <div class="menuTitle">HOW TO PLAY</div>
+    <div class="helpText">
+      <b>Move:</b> Left Stick (Axes 0 & 1) / WASD<br>
+      <b>Look:</b> Right Stick (Axes 2 & 3) / Trackpad / Pointer Lock / Touch Drag<br>
+      <b>Jump:</b> A Button / Space / ⤒ Button<br>
+      <b>Mine:</b> R2 / Right Click / ⛏ Button<br>
+      <b>Build:</b> L2 / Left Click / ▦ Button<br>
+      <b>Open/Close Door:</b> Aim at a door and use the Build action<br>
+      <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
+      <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
+      <b>Inventory:</b> E / 🎒 Button<br><br>
+      <b>New:</b> Dig for caves &amp; ore, place torches for light, build doors you can open<br><br>
+      <b>Multiplayer:</b> Hit Play, create a room, then share the invite link so friends on any Wi-Fi or mobile data can join your world.
+    </div>
+    <button id="howToBackBtn" class="menuBtn panel">◀ BACK</button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
@@ -1949,6 +1974,55 @@ try {
   const savedName = localStorage.getItem("strataPlayerName");
   if (savedName) document.getElementById("playerNameInput").value = savedName;
 } catch (err) {}
+
+/* ---------- How To Play ---------- */
+const howToScreenEl = document.getElementById("howToScreen");
+document.getElementById("howToBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  howToScreenEl.style.display = "flex";
+});
+document.getElementById("howToBackBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  howToScreenEl.style.display = "none";
+});
+
+/* ---------- Fullscreen (lets the browser chrome get out of the way) ---------- */
+function isFullscreenSupported() {
+  const el = document.documentElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+function isFullscreenActive() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function toggleFullscreen() {
+  try {
+    if (isFullscreenActive()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  } catch (err) { console.error("toggleFullscreen failed:", err); }
+}
+if (isFullscreenSupported()) {
+  const fsBtn = document.getElementById("fullscreenBtn");
+  const fsBtnOptions = document.getElementById("fullscreenBtnOptions");
+  fsBtn.style.display = "block";
+  fsBtnOptions.style.display = "block";
+  const updateFullscreenBtns = () => {
+    const active = isFullscreenActive();
+    const label = active ? "⛶ EXIT FULLSCREEN" : "⛶ FULLSCREEN";
+    fsBtn.textContent = label;
+    fsBtnOptions.textContent = label;
+    fsBtn.classList.toggle("active", active);
+    fsBtnOptions.classList.toggle("active", active);
+  };
+  fsBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
+  fsBtnOptions.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
+  document.addEventListener("fullscreenchange", updateFullscreenBtns);
+  document.addEventListener("webkitfullscreenchange", updateFullscreenBtns);
+  updateFullscreenBtns();
+}
 
 handleResize();
 animate(performance.now());
