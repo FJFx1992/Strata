@@ -270,6 +270,7 @@
   <div id="pausePanel" class="panel">
     <div class="menuTitle">PAUSED</div>
     <button id="resumeBtn" class="menuBtn panel">▶ RESUME</button>
+    <button id="saveBtn" class="menuBtn panel">💾 SAVE</button>
     <button id="controlsBtn" class="menuBtn panel">⌨ MAP CONTROLS</button>
     <button id="mainMenuBtn" class="menuBtn panel">⏻ MAIN MENU</button>
   </div>
@@ -311,6 +312,7 @@
     <b>New:</b> Dig for caves &amp; ore, place torches for light
   </div>
   <button id="playBtn" class="panel">▶ PLAY</button>
+  <button id="continueBtn" class="menuBtn panel" style="display:none;">📂 CONTINUE</button>
   <button id="mpBtn" class="menuBtn panel">🌐 MULTIPLAYER</button>
 </div>
 
@@ -788,7 +790,9 @@ function selectBlockByIndex(idx) {
     selectedBlockIdx = (idx + BLOCK_TYPES.length) % BLOCK_TYPES.length;
     selectedBlock = BLOCK_TYPES[selectedBlockIdx];
     if (selectedBlock !== "torch") lastNonTorchIdx = selectedBlockIdx;
-    document.querySelectorAll(".slot").forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+    const slots = document.querySelectorAll(".slot");
+    slots.forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+    if (slots[selectedBlockIdx]) slots[selectedBlockIdx].scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   } catch (err) { console.error("selectBlockByIndex failed:", err); }
 }
 
@@ -1077,7 +1081,69 @@ function breakBlock() {
     resources[minedType]++;
     updateResourceHUD();
   }
+  scheduleAutoSave();
 }
+
+/* ---------- Save / Load (solo play only - a multiplayer room's world is
+   shared and ephemeral, so it isn't persisted locally) ---------- */
+const SAVE_KEY = "strataSave";
+function saveGame() {
+  if (mpActive) return false;
+  try {
+    const blocks = [];
+    for (const [k, type] of world) {
+      const idx = BLOCK_TYPES.indexOf(type);
+      if (idx === -1) continue;
+      blocks.push(k + "," + idx);
+    }
+    const save = {
+      seed: WORLD_SEED,
+      blocks: blocks.join(";"),
+      pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
+      yaw: player.yaw, pitch: player.pitch,
+      resources
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    return true;
+  } catch (err) { console.error("saveGame failed:", err); return false; }
+}
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const save = JSON.parse(raw);
+    WORLD_SEED = save.seed;
+    world.clear();
+    if (save.blocks) {
+      save.blocks.split(";").forEach((entry) => {
+        const parts = entry.split(",");
+        if (parts.length !== 4) return;
+        const x = +parts[0], y = +parts[1], z = +parts[2], idx = +parts[3];
+        const type = BLOCK_TYPES[idx];
+        if (type) world.set(key(x, y, z), type);
+      });
+    }
+    if (save.resources) resources = Object.assign({ coalore: 0, goldore: 0 }, save.resources);
+    updateResourceHUD();
+    rebuildMeshes();
+    if (save.pos) player.pos.set(save.pos.x, save.pos.y, save.pos.z);
+    if (typeof save.yaw === "number") player.yaw = save.yaw;
+    if (typeof save.pitch === "number") player.pitch = save.pitch;
+    return true;
+  } catch (err) { console.error("loadGame failed:", err); return false; }
+}
+function hasSavedGame() {
+  try { return !!localStorage.getItem(SAVE_KEY); } catch (err) { return false; }
+}
+let autoSaveTimer = null;
+function scheduleAutoSave() {
+  if (mpActive) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveGame, 2500);
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
+window.addEventListener("beforeunload", () => { saveGame(); });
+/* ---------- End save / load ---------- */
 
 function placeBlock() {
   try {
@@ -1094,6 +1160,7 @@ function placeBlock() {
     rebuildMeshes();
     if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: placedType }, mpRPC.Mode.OTHERS);
     if (placedType === "torch") selectBlockByIndex(lastNonTorchIdx);
+    scheduleAutoSave();
   } catch (err) { console.error("placeBlock failed:", err); }
 }
 
@@ -1359,6 +1426,12 @@ function togglePause() {
 
 document.getElementById("pauseBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); togglePause(); });
 document.getElementById("resumeBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+document.getElementById("saveBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (mpActive) { showToast("Multiplayer worlds aren't saved locally", true); return; }
+  const ok = saveGame();
+  showToast(ok ? "Progress saved" : "Save failed", !ok);
+});
 document.getElementById("mainMenuBtn").addEventListener("click", (e) => { e.stopPropagation(); location.reload(); });
 document.getElementById("controlsBtn").addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1380,19 +1453,22 @@ document.getElementById("resetBindingsBtn").addEventListener("click", (e) => {
 });
 /* ---------- End pause menu & control remapping ---------- */
 
-function showErrorToast(msg) {
+function showToast(msg, isError) {
   let el = document.getElementById("errToast");
   if (!el) {
     el = document.createElement("div");
     el.id = "errToast";
-    el.style.cssText = "position:fixed;left:50%;bottom:130px;transform:translateX(-50%);max-width:90vw;background:#3a1010;color:#fff;padding:10px 16px;border:2px solid #a33;font-family:monospace;font-size:11px;z-index:999;border-radius:4px;pointer-events:none;white-space:pre-wrap;";
+    el.style.cssText = "position:fixed;left:50%;bottom:130px;transform:translateX(-50%);max-width:90vw;color:#fff;padding:10px 16px;font-family:monospace;font-size:11px;z-index:999;border-radius:4px;pointer-events:none;white-space:pre-wrap;";
     document.body.appendChild(el);
   }
-  el.textContent = "⚠ " + msg;
+  el.style.background = isError ? "#3a1010" : "#123a1a";
+  el.style.border = "2px solid " + (isError ? "#a33" : "#3a7a4a");
+  el.textContent = (isError ? "⚠ " : "✓ ") + msg;
   el.style.display = "block";
   clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.display = "none"; }, 9000);
+  el._t = setTimeout(() => { el.style.display = "none"; }, isError ? 9000 : 2200);
 }
+function showErrorToast(msg) { showToast(msg, true); }
 window.addEventListener("error", (e) => {
   const msg = (e.error && (e.error.stack || e.error.message)) || e.message || "unknown error";
   console.error("Uncaught error:", msg, e.filename, e.lineno, e.colno);
@@ -1503,18 +1579,23 @@ function animate(now) {
 }
 let netTimer = 0;
 
-async function startGame(useMultiplayer) {
+async function startGame(mode) {
   document.getElementById("startScreen").style.display = "none";
   initAudio();
   const audioReady = actx.state === "suspended" ? actx.resume() : Promise.resolve();
-  if (useMultiplayer) { await initMultiplayer(); }
-  else { WORLD_SEED = Math.random() * 4000; }
-  genWorld();
-  rebuildMeshes();
-  const spawnX = SIZE >> 1, spawnZ = SIZE >> 1;
-  const spawnY = findClearSpawnY(spawnX, spawnZ);
-  player.pos.set(spawnX + 0.5, spawnY, spawnZ + 0.5);
-  player.vel.set(0, 0, 0);
+  if (mode === "multiplayer") { await initMultiplayer(); }
+  else if (mode !== "continue") { WORLD_SEED = Math.random() * 4000; }
+
+  const loaded = mode === "continue" ? loadGame() : false;
+  if (!loaded) {
+    if (mode === "continue") WORLD_SEED = Math.random() * 4000;
+    genWorld();
+    rebuildMeshes();
+    const spawnX = SIZE >> 1, spawnZ = SIZE >> 1;
+    const spawnY = findClearSpawnY(spawnX, spawnZ);
+    player.pos.set(spawnX + 0.5, spawnY, spawnZ + 0.5);
+    player.vel.set(0, 0, 0);
+  }
   await audioReady;
   startAmbientMusic();
   started = true;
@@ -1522,8 +1603,10 @@ async function startGame(useMultiplayer) {
   lastTime = performance.now();
   setTimeout(() => document.getElementById("tips").classList.add("fade"), 6000);
 }
-document.getElementById("playBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(false); });
-document.getElementById("mpBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(true); });
+document.getElementById("playBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("solo"); });
+document.getElementById("mpBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("multiplayer"); });
+document.getElementById("continueBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("continue"); });
+if (hasSavedGame()) document.getElementById("continueBtn").style.display = "block";
 
 handleResize();
 animate(performance.now());
