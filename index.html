@@ -82,28 +82,6 @@
   }
   #instructions b{ color:var(--accent); }
 
-  #nameRow{
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-  }
-  #nameInput{
-    font-family:var(--font-d); font-size:13px; color:var(--ink);
-    background:var(--panel-light); border:none; outline:none;
-    padding:12px 14px; width:220px; max-width:70vw; text-align:center;
-    letter-spacing:1px;
-  }
-  #nameInput::placeholder{ color:#8a8a8a; }
-  #nameInput:focus{
-    box-shadow:0 0 0 2px var(--accent);
-  }
-
-  #welcome{
-    position:absolute; top:110px; left:50%; transform:translateX(-50%);
-    font-family:var(--font-d); font-size:14px; color:#fff; text-align:center;
-    padding:10px 18px; text-shadow:2px 2px 0 var(--accent-dark);
-    opacity:1; transition:opacity 1.2s; pointer-events:none; white-space:nowrap;
-  }
-  #welcome.fade{ opacity:0; }
-
   #hud{ position:fixed; inset:0; z-index:20; pointer-events:none; }
   #crosshair{
     position:absolute; top:50%; left:50%; width:18px; height:18px;
@@ -125,6 +103,11 @@
     font-size:10px; color:#a0e0ff; pointer-events:none; letter-spacing:.5px;
     font-family: monospace;
   }
+  #resources{
+    position:absolute; top:86px; left:14px; padding:8px 12px;
+    font-size:11px; color:#e8ecf1; pointer-events:none; letter-spacing:.5px;
+  }
+  #resources b{ color:var(--accent); }
 
   #topRight{ position:absolute; top:14px; right:14px; display:flex; gap:8px; pointer-events:auto; }
   .iconBtn{
@@ -142,6 +125,7 @@
   #hotbar{
     position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; gap:6px; padding:6px; pointer-events:auto;
+    max-width:96vw; overflow-x:auto;
   }
   .slot{
     width:52px; height:52px; position:relative; cursor:pointer;
@@ -185,7 +169,7 @@
 
   body.paused #game{ cursor:default; }
 
-  #pauseScreen, #controlsScreen{
+  #pauseScreen, #controlsScreen, #optionsScreen{
     position:fixed; inset:0; z-index:40; display:none;
     align-items:center; justify-content:center;
     background:rgba(8,11,18,.72); pointer-events:auto; padding:20px;
@@ -260,13 +244,13 @@
 <div id="hud">
   <div id="crosshair"><div class="h"></div><div class="v"></div></div>
   <div id="coords" class="panel">X <b id="cx">0</b>  Y <b id="cy">0</b>  Z <b id="cz">0</b></div>
+  <div id="resources" class="panel">⛏ <b id="rCoal">0</b>  💰 <b id="rGold">0</b></div>
   <div id="debugAxes" class="panel">Stick R: X:<span id="dbgX">0.00</span> Y:<span id="dbgY">0.00</span></div>
   <div id="topRight">
     <div id="invBtn" class="iconBtn round accent">🎒</div>
     <div id="pauseBtn" class="iconBtn round accent">⏸</div>
     <div id="muteBtn" class="iconBtn round accent">🔊</div>
   </div>
-  <div id="welcome"></div>
   <div id="tips">Deck Stick/WASD: Move • Right Stick/Mouse/Drag: Look • R2/⛏: Mine • L2/▦: Build</div>
 
   <div id="hotbar"></div>
@@ -286,8 +270,10 @@
   <div id="pausePanel" class="panel">
     <div class="menuTitle">PAUSED</div>
     <button id="resumeBtn" class="menuBtn panel">▶ RESUME</button>
+    <button id="saveBtn" class="menuBtn panel">💾 SAVE</button>
     <button id="controlsBtn" class="menuBtn panel">⌨ MAP CONTROLS</button>
     <button id="mainMenuBtn" class="menuBtn panel">⏻ MAIN MENU</button>
+    <button id="optionsBtn" class="menuBtn panel">⚙ OPTIONS</button>
   </div>
 </div>
 
@@ -298,6 +284,15 @@
     <div id="controlsList"></div>
     <button id="resetBindingsBtn" class="menuBtn panel">RESET DEFAULTS</button>
     <button id="controlsBackBtn" class="menuBtn panel">◀ BACK</button>
+  </div>
+</div>
+
+<div id="optionsScreen">
+  <div id="optionsPanel" class="panel">
+    <div class="menuTitle">OPTIONS</div>
+    <button id="touchToggleBtn" class="menuBtn panel">TOUCH CONTROLS: ON</button>
+    <div class="menuHint">Hides the on-screen joystick and jump/mine/build buttons - handy if you're using a keyboard or controller.</div>
+    <button id="optionsBackBtn" class="menuBtn panel">◀ BACK</button>
   </div>
 </div>
 
@@ -323,21 +318,21 @@
     <b>Build:</b> L2 / Left Click / ▦ Button<br>
     <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
     <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
-    <b>Inventory:</b> E / 🎒 Button
+    <b>Inventory:</b> E / 🎒 Button<br>
+    <b>New:</b> Dig for caves &amp; ore, place torches for light
   </div>
-  <div id="nameRow">
-    <label for="nameInput" class="menuHint" style="margin:0;">What should we call you?</label>
-    <input id="nameInput" class="panel" type="text" maxlength="16" placeholder="Steve" autocomplete="off" spellcheck="false">
-  </div>
+  <input id="playerNameInput" class="panel" type="text" maxlength="16" placeholder="Your name" style="font-family:var(--font-b);font-size:14px;color:#fff;background:var(--panel-dark);text-align:center;padding:10px;width:200px;outline:none;">
   <button id="playBtn" class="panel">▶ PLAY</button>
+  <button id="continueBtn" class="menuBtn panel" style="display:none;">📂 CONTINUE</button>
   <button id="mpBtn" class="menuBtn panel">🌐 MULTIPLAYER</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/playroomkit/multiplayer.full.umd.js" crossorigin="anonymous"></script>
+<!-- Playroom SDK is now loaded on-demand only when Multiplayer is chosen (see loadPlayroomScript). -->
 <script>
 "use strict";
 
+const SIZE = 40;
 const MAXY = 20;
 const REACH = 6;
 const GRAVITY = 22;
@@ -346,7 +341,7 @@ const MOVE_SPEED = 4.4;
 const CYCLE_SECONDS = 260;
 let WORLD_SEED = 0; // set for real in initMultiplayer()
 
-const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass","coal_ore","iron_ore","gold_ore","diamond_ore","torch"];
+const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass","coalore","goldore","torch"];
 
 // Remappable keyboard controls (movement and look are excluded - those stay on WASD/mouse).
 const DEFAULT_BINDINGS = {
@@ -371,12 +366,6 @@ const BINDING_LABELS = {
 };
 let keyBindings = Object.assign({}, DEFAULT_BINDINGS);
 
-let playerName = "Steve";
-function capturePlayerName() {
-  const raw = document.getElementById("nameInput").value.trim();
-  playerName = (raw || "Steve").slice(0, 16);
-}
-
 function hash2(x, y) {
   const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return s - Math.floor(s);
@@ -389,6 +378,19 @@ function noise2D(x, y) {
   const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
   return (v00 * (1 - u) + v10 * u) * (1 - v) + (v01 * (1 - u) + v11 * u) * v;
 }
+function hash3(x, y, z) {
+  const s = Math.sin(x * 127.1 + y * 269.5 + z * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+function noise3D(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = x - xi, yf = y - yi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+  const c = (dx, dy, dz) => hash3(xi + dx, yi + dy, zi + dz);
+  const x00 = c(0,0,0)*(1-u)+c(1,0,0)*u, x10 = c(0,1,0)*(1-u)+c(1,1,0)*u;
+  const x01 = c(0,0,1)*(1-u)+c(1,0,1)*u, x11 = c(0,1,1)*(1-u)+c(1,1,1)*u;
+  return (x00*(1-v)+x10*v)*(1-w) + (x01*(1-v)+x11*v)*w;
+}
 function terrainHeight(x, z) {
   const sx = x + WORLD_SEED, sz = z + WORLD_SEED;
   let e = noise2D(sx * 0.045, sz * 0.045) * 1.0
@@ -399,45 +401,6 @@ function terrainHeight(x, z) {
 }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function key(x, y, z) { return x + "," + y + "," + z; }
-
-// ---- Cave carving (3D value noise) ----
-function hash3(x, y, z) {
-  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
-  return s - Math.floor(s);
-}
-function noise3D(x, y, z) {
-  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-  const xf = x - xi, yf = y - yi, zf = z - zi;
-  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
-  const c000 = hash3(xi, yi, zi), c100 = hash3(xi + 1, yi, zi);
-  const c010 = hash3(xi, yi + 1, zi), c110 = hash3(xi + 1, yi + 1, zi);
-  const c001 = hash3(xi, yi, zi + 1), c101 = hash3(xi + 1, yi, zi + 1);
-  const c011 = hash3(xi, yi + 1, zi + 1), c111 = hash3(xi + 1, yi + 1, zi + 1);
-  const x00 = c000 * (1 - u) + c100 * u, x10 = c010 * (1 - u) + c110 * u;
-  const x01 = c001 * (1 - u) + c101 * u, x11 = c011 * (1 - u) + c111 * u;
-  const y0 = x00 * (1 - v) + x10 * v, y1 = x01 * (1 - v) + x11 * v;
-  return y0 * (1 - w) + y1 * w;
-}
-function caveDensity(x, y, z) {
-  const sx = x + WORLD_SEED * 1.3, sy = y, sz = z + WORLD_SEED * 0.7;
-  const n = noise3D(sx * 0.12, sy * 0.17, sz * 0.12) * 1.0
-          + noise3D(sx * 0.055 + 31, sy * 0.09 + 31, sz * 0.055 + 31) * 0.55;
-  return n / 1.55;
-}
-function isCave(x, y, z, h) {
-  if (y <= 1 || y >= h - 1) return false; // keep bedrock and the surface crust solid
-  return caveDensity(x, y, z) > 0.58;
-}
-
-// ---- Ore placement (scattered veins by depth) ----
-function pickOre(x, y, z) {
-  const n = hash3(x * 3.7 + 11, y * 5.3 + 17, z * 2.9 + 23);
-  if (y <= 4 && n > 0.975) return "diamond_ore";
-  if (y <= 8 && n > 0.955) return "gold_ore";
-  if (y <= 12 && n > 0.90) return "iron_ore";
-  if (n > 0.85) return "coal_ore";
-  return "stone";
-}
 
 const texCanvases = {};
 function makeCanvas(size, draw) {
@@ -505,6 +468,21 @@ function buildTextures() {
     g.addColorStop(1, "rgba(255,220,140,0)");
     ctx.fillStyle = g; ctx.fillRect(0,0,32,32);
   });
+  texCanvases.coalore = makeCanvas(S, (ctx) => {
+    noisyFill(ctx, S, [130, 130, 132], 20, 21);
+    ctx.fillStyle = "rgba(20,20,20,.85)";
+    for (let i = 0; i < 8; i++) ctx.fillRect((hash2(i, 101) * S) | 0, (hash2(i, 202) * S) | 0, 2, 2);
+  });
+  texCanvases.goldore = makeCanvas(S, (ctx) => {
+    noisyFill(ctx, S, [130, 130, 132], 20, 31);
+    ctx.fillStyle = "rgba(255,205,60,.9)";
+    for (let i = 0; i < 7; i++) ctx.fillRect((hash2(i, 303) * S) | 0, (hash2(i, 404) * S) | 0, 2, 2);
+  });
+  texCanvases.torch = makeCanvas(S, (ctx) => {
+    ctx.fillStyle = "#6b4226"; ctx.fillRect(6, 6, 4, 9);
+    ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(8, 5, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff2b0"; ctx.beginPath(); ctx.arc(8, 4, 1.4, 0, 7); ctx.fill();
+  });
   texCanvases.sand = makeCanvas(S, (ctx) => noisyFill(ctx, S, [223, 204, 150], 18, 11));
   texCanvases.brick = makeCanvas(S, (ctx) => {
     noisyFill(ctx, S, [150, 60, 46], 16, 12);
@@ -514,23 +492,6 @@ function buildTextures() {
   texCanvases.glass = makeCanvas(S, (ctx) => {
     ctx.fillStyle = "rgba(200,235,245,.55)"; ctx.fillRect(0, 0, S, S);
     ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.strokeRect(0.5, 0.5, S - 1, S - 1);
-  });
-  function oreTex(seed, specColor, spots) {
-    return makeCanvas(S, (ctx) => {
-      noisyFill(ctx, S, [130, 130, 132], 22, seed);
-      ctx.fillStyle = specColor;
-      spots.forEach(([x, y]) => ctx.fillRect(x, y, 2, 2));
-    });
-  }
-  texCanvases.coalOre = oreTex(15, "rgba(24,22,26,.9)", [[3,3],[9,2],[5,7],[12,9],[7,12],[2,10]]);
-  texCanvases.ironOre = oreTex(16, "rgba(216,175,140,.92)", [[2,4],[8,3],[5,8],[11,10],[13,5]]);
-  texCanvases.goldOre = oreTex(17, "rgba(255,214,64,.95)", [[3,2],[9,4],[4,9],[12,8],[7,12]]);
-  texCanvases.diamondOre = oreTex(18, "rgba(90,230,235,.95)", [[3,3],[10,3],[6,7],[12,10],[3,11]]);
-  texCanvases.torchIcon = makeCanvas(S, (ctx) => {
-    ctx.clearRect(0, 0, S, S);
-    ctx.fillStyle = "#6b4226"; ctx.fillRect(6, 7, 4, 9);
-    ctx.fillStyle = "#ffcf5c"; ctx.fillRect(5, 3, 6, 5);
-    ctx.fillStyle = "#fff3b0"; ctx.fillRect(6, 3, 4, 3);
   });
 }
 buildTextures();
@@ -560,7 +521,7 @@ window.addEventListener('resize', handleResize);
 
 const hemi = new THREE.HemisphereLight(0xbfe3f5, 0x3a2e20, 0.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(40, 60, 20); scene.add(sun);
-scene.add(new THREE.AmbientLight(0x404040, 0.25));
+scene.add(new THREE.AmbientLight(0x404040, 0.14));
 
 function three_tex(canvasEl) {
   const t = new THREE.CanvasTexture(canvasEl);
@@ -585,103 +546,98 @@ const MATERIALS = {
   sand:  [faceMat(TEX.sand,SIDE), faceMat(TEX.sand,SIDE), faceMat(TEX.sand,TOP), faceMat(TEX.sand,BOT), faceMat(TEX.sand,SIDE), faceMat(TEX.sand,SIDE)],
   brick: [faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,TOP), faceMat(TEX.brick,BOT), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE)],
   glass: (() => { const m = new THREE.MeshLambertMaterial({ map: TEX.glass, transparent: true, opacity: 0.55 }); return [m,m,m,m,m,m]; })(),
-  coal_ore:    [faceMat(TEX.coalOre,SIDE), faceMat(TEX.coalOre,SIDE), faceMat(TEX.coalOre,TOP), faceMat(TEX.coalOre,BOT), faceMat(TEX.coalOre,SIDE), faceMat(TEX.coalOre,SIDE)],
-  iron_ore:    [faceMat(TEX.ironOre,SIDE), faceMat(TEX.ironOre,SIDE), faceMat(TEX.ironOre,TOP), faceMat(TEX.ironOre,BOT), faceMat(TEX.ironOre,SIDE), faceMat(TEX.ironOre,SIDE)],
-  gold_ore:    [faceMat(TEX.goldOre,SIDE), faceMat(TEX.goldOre,SIDE), faceMat(TEX.goldOre,TOP), faceMat(TEX.goldOre,BOT), faceMat(TEX.goldOre,SIDE), faceMat(TEX.goldOre,SIDE)],
-  diamond_ore: [faceMat(TEX.diamondOre,SIDE), faceMat(TEX.diamondOre,SIDE), faceMat(TEX.diamondOre,TOP), faceMat(TEX.diamondOre,BOT), faceMat(TEX.diamondOre,SIDE), faceMat(TEX.diamondOre,SIDE)]
+  coalore: [faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,TOP), faceMat(TEX.coalore,BOT), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE)],
+  goldore: [faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,TOP), faceMat(TEX.goldore,BOT), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE)]
 };
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const torchGeo = new THREE.BoxGeometry(0.15, 0.55, 0.15);
+const torchMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
+let torchObjects = [];
 
 const world = new Map();
 
-// ---- Torch: a non-cube light-emitting block, kept out of the instanced world mesh ----
-const torches = new Map();
-const torchStickGeo = new THREE.BoxGeometry(0.1, 0.55, 0.1);
-const torchStickMat = new THREE.MeshLambertMaterial({ color: 0x5b3a22 });
-const torchFlameMat = new THREE.SpriteMaterial({ map: TEX.glow, color: 0xffcf6a, transparent: true, depthWrite: false });
-function createTorchGroup() {
-  const g = new THREE.Group();
-  const stick = new THREE.Mesh(torchStickGeo, torchStickMat);
-  stick.position.y = 0.2;
-  g.add(stick);
-  const flame = new THREE.Sprite(torchFlameMat);
-  flame.scale.set(0.5, 0.5, 1);
-  flame.position.y = 0.5;
-  g.add(flame);
-  const light = new THREE.PointLight(0xffb864, 1.4, 7, 2);
-  light.position.y = 0.5;
-  g.add(light);
-  return g;
-}
-function addTorch(x, y, z) {
-  const k = key(x, y, z);
-  if (torches.has(k)) return;
-  const g = createTorchGroup();
-  g.position.set(x + 0.5, y, z + 0.5);
-  scene.add(g);
-  torches.set(k, g);
-}
-function removeTorch(x, y, z) {
-  const k = key(x, y, z);
-  const g = torches.get(k);
-  if (!g) return;
-  scene.remove(g);
-  torches.delete(k);
-}
-function isTargetable(x, y, z) { return isSolid(x, y, z) || torches.has(key(x, y, z)); }
-
-const CHUNK_SIZE = 16;
-const RENDER_CHUNKS = 2;   // chunks loaded outward from the player
-const UNLOAD_MARGIN = 1;   // extra ring kept loaded before unloading, avoids load/unload thrashing at the edge
-const TREE_CELL = 5;       // grid spacing for tree candidates (jittered, so it works across chunk borders)
-const TREE_MARGIN = 3;     // how far a tree's canopy can spill past its own cell
-
-const chunks = new Map();       // "cx,cz" -> true, currently-loaded chunks
-const chunkEdits = new Map();   // "cx,cz" -> Map("x,y,z" -> type|null)  — the persistent diff from procedural generation
-const chunkMeshes = new Map();  // "cx,cz" -> { blockType: InstancedMesh }
-
-function chunkCoord(v) { return Math.floor(v / CHUNK_SIZE); }
+const CHUNK_SIZE = 16, LOAD_R = 1, UNLOAD_R = 2;
+const loadedChunks = new Set();
+let treeSpots = [];
 function chunkKey(cx, cz) { return cx + "," + cz; }
-
-// Records a player edit so it survives the chunk being unloaded and regenerated later.
-// type === null means "block removed"; type === "torch" is handled specially on reload.
-function recordEdit(x, y, z, type) {
-  const ck = chunkKey(chunkCoord(x), chunkCoord(z));
-  let m = chunkEdits.get(ck);
-  if (!m) { m = new Map(); chunkEdits.set(ck, m); }
-  m.set(key(x, y, z), type);
-}
+const edits = new Map(); // permanent record of every player change: key -> blockType, or null for "broken/removed"
 function applyEditsToChunk(cx, cz) {
-  const m = chunkEdits.get(chunkKey(cx, cz));
-  if (!m) return;
-  for (const [k, type] of m) {
-    const [ex, ey, ez] = k.split(",").map(Number);
-    if (type === null) {
-      world.delete(k);
-      if (torches.has(k)) removeTorch(ex, ey, ez);
-    } else if (type === "torch") {
-      addTorch(ex, ey, ez);
-    } else {
-      world.set(k, type);
+  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
+  for (const [k, v] of edits) {
+    const p = k.split(",");
+    const ex = +p[0], ez = +p[2];
+    if (ex >= x0 && ex < x0 + CHUNK_SIZE && ez >= z0 && ez < z0 + CHUNK_SIZE) {
+      if (v === null) world.delete(k); else world.set(k, v);
     }
   }
 }
-
-// Deterministic tree placement on a jittered grid, independent of generation order,
-// so trees look identical no matter which neighboring chunk loads first.
-function treeCandidateAt(cellX, cellZ) {
-  const jx = hash2(cellX * 12.9 + 3 + WORLD_SEED, cellZ * 78.2 + 3 + WORLD_SEED);
-  const jz = hash2(cellX * 37.7 + 91 + WORLD_SEED, cellZ * 19.3 + 91 + WORLD_SEED);
-  const tx = cellX * TREE_CELL + Math.floor(jx * TREE_CELL);
-  const tz = cellZ * TREE_CELL + Math.floor(jz * TREE_CELL);
-  if (hash2(tx * 3.1 + 5 + WORLD_SEED, tz * 7.7 + 5 + WORLD_SEED) <= 0.8) return null;
-  return { tx, tz };
+function genChunk(cx, cz) {
+  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
+  for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
+    for (let z = z0; z < z0 + CHUNK_SIZE; z++) {
+      const h = terrainHeight(x, z);
+      for (let y = 0; y <= h; y++) {
+        // Leave a solid crust near the surface (top 4 layers) and bedrock (y=0)
+        // untouched, so caves never break the ground you're standing on.
+        if (y > 0 && y < h - 3) {
+          const cave = noise3D((x + WORLD_SEED) * 0.13, y * 0.18, (z + WORLD_SEED) * 0.13);
+          if (cave > 0.63) continue; // carve out open cave air
+        }
+        let type = y === 0 ? "stone" : y === h ? "grass" : y >= h - 3 ? "dirt" : "stone";
+        if (type === "stone" && y > 0 && y < h - 3) {
+          const ore = hash2(x * 5.3 + y * 13.7 + WORLD_SEED, z * 7.1 - y * 3.3 + WORLD_SEED);
+          if (y < 6 && ore > 0.985) type = "goldore";
+          else if (ore > 0.95) type = "coalore";
+        }
+        world.set(key(x, y, z), type);
+      }
+      if (hash2(x * 3.1 + 5 + WORLD_SEED, z * 7.7 + 5 + WORLD_SEED) > 0.965) {
+        let ok = true;
+        for (const [tx, tz] of treeSpots) if (Math.abs(tx - x) + Math.abs(tz - z) < 4) ok = false;
+        if (ok) { treeSpots.push([x, z]); placeTree(x, h, z); }
+      }
+    }
+  }
+  applyEditsToChunk(cx, cz); // restore any player changes made here previously
 }
-function treeBlocks(tx, tz) {
-  const h = terrainHeight(tx, tz);
-  const trunkH = hash2(tx * 9.3 + 1, tz * 1.7 + 1) > 0.5 ? 4 : 3;
-  const blocks = [];
-  for (let i = 1; i <= trunkH; i++) blocks.push([tx, h + i, tz, "wood"]);
+function unloadChunk(cx, cz) {
+  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
+  for (let x = x0; x < x0 + CHUNK_SIZE; x++)
+    for (let z = z0; z < z0 + CHUNK_SIZE; z++)
+      for (let y = 0; y < MAXY; y++) world.delete(key(x, y, z));
+}
+// Loads chunks near (px,pz); unloads far ones too, unless in multiplayer
+// (everyone needs to keep seeing the same shared area). Returns true if the
+// world actually changed, so the caller knows whether to rebuild meshes.
+function ensureChunksLoaded(px, pz) {
+  const ccx = Math.floor(px / CHUNK_SIZE), ccz = Math.floor(pz / CHUNK_SIZE);
+  let changed = false;
+  for (let dx = -LOAD_R; dx <= LOAD_R; dx++) {
+    for (let dz = -LOAD_R; dz <= LOAD_R; dz++) {
+      const ck = chunkKey(ccx + dx, ccz + dz);
+      if (!loadedChunks.has(ck)) { genChunk(ccx + dx, ccz + dz); loadedChunks.add(ck); changed = true; }
+    }
+  }
+  if (!mpActive) {
+    for (const ck of Array.from(loadedChunks)) {
+      const [lcx, lcz] = ck.split(",").map(Number);
+      if (Math.max(Math.abs(lcx - ccx), Math.abs(lcz - ccz)) > UNLOAD_R) {
+        unloadChunk(lcx, lcz); loadedChunks.delete(ck); changed = true;
+      }
+    }
+  }
+  return changed;
+}
+function markLoadedChunksFromWorld() {
+  loadedChunks.clear();
+  for (const k of world.keys()) {
+    const p = k.split(",");
+    loadedChunks.add(chunkKey(Math.floor(+p[0] / CHUNK_SIZE), Math.floor(+p[2] / CHUNK_SIZE)));
+  }
+}
+function placeTree(x, h, z) {
+  const trunkH = hash2(x * 9.3 + 1, z * 1.7 + 1) > 0.5 ? 4 : 3;
+  for (let i = 1; i <= trunkH; i++) world.set(key(x, h + i, z), "wood");
   const topY = h + trunkH;
   for (let ly = -1; ly <= 2; ly++) {
     const y = topY + ly;
@@ -690,59 +646,8 @@ function treeBlocks(tx, tz) {
       for (let dz = -rad; dz <= rad; dz++) {
         if (dx === 0 && dz === 0 && ly < 2) continue;
         if (Math.abs(dx) + Math.abs(dz) > rad + 1 || (Math.abs(dx) === rad && Math.abs(dz) === rad)) continue;
-        blocks.push([tx + dx, y, tz + dz, "leaves"]);
-      }
-    }
-  }
-  return blocks;
-}
-
-// Procedurally fills one chunk's terrain (deterministic from WORLD_SEED + coords), then
-// overlays any persisted edits. Never touches blocks outside its own x/z bounds, so
-// unloading a chunk can cleanly remove exactly what it added.
-function genChunk(cx, cz) {
-  const ck = chunkKey(cx, cz);
-  if (chunks.has(ck)) return;
-  chunks.set(ck, true);
-  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
-  for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
-    for (let z = z0; z < z0 + CHUNK_SIZE; z++) {
-      const h = terrainHeight(x, z);
-      for (let y = 0; y <= h; y++) {
-        if (isCave(x, y, z, h)) continue;
-        let type = y === 0 ? "stone" : y === h ? "grass" : y >= h - 3 ? "dirt" : "stone";
-        if (type === "stone" && y > 0) type = pickOre(x, y, z);
-        world.set(key(x, y, z), type);
-      }
-    }
-  }
-  const cellMinX = Math.floor((x0 - TREE_MARGIN) / TREE_CELL), cellMaxX = Math.floor((x0 + CHUNK_SIZE + TREE_MARGIN) / TREE_CELL);
-  const cellMinZ = Math.floor((z0 - TREE_MARGIN) / TREE_CELL), cellMaxZ = Math.floor((z0 + CHUNK_SIZE + TREE_MARGIN) / TREE_CELL);
-  for (let cxi = cellMinX; cxi <= cellMaxX; cxi++) {
-    for (let czi = cellMinZ; czi <= cellMaxZ; czi++) {
-      const cand = treeCandidateAt(cxi, czi);
-      if (!cand) continue;
-      for (const [bx, by, bz, btype] of treeBlocks(cand.tx, cand.tz)) {
-        if (bx < x0 || bx >= x0 + CHUNK_SIZE || bz < z0 || bz >= z0 + CHUNK_SIZE) continue;
-        const bk = key(bx, by, bz);
-        if (btype === "leaves" && world.has(bk)) continue;
-        world.set(bk, btype);
-      }
-    }
-  }
-  applyEditsToChunk(cx, cz);
-}
-function unloadChunk(cx, cz) {
-  const ck = chunkKey(cx, cz);
-  if (!chunks.has(ck)) return;
-  chunks.delete(ck);
-  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
-  for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
-    for (let z = z0; z < z0 + CHUNK_SIZE; z++) {
-      for (let y = 0; y <= MAXY; y++) {
-        const k = key(x, y, z);
-        if (torches.has(k)) removeTorch(x, y, z);
-        world.delete(k);
+        const kk = key(x + dx, y, z + dz);
+        if (!world.has(kk)) world.set(kk, "leaves");
       }
     }
   }
@@ -750,27 +655,23 @@ function unloadChunk(cx, cz) {
 
 function isSolid(x, y, z) { return world.has(key(x, y, z)); }
 
-function buildChunkMesh(cx, cz) {
-  removeChunkMesh(cx, cz);
-  const x0 = cx * CHUNK_SIZE, z0 = cz * CHUNK_SIZE;
+const instancedMeshes = {};
+function rebuildMeshes() {
+  for (const t in instancedMeshes) { if (instancedMeshes[t]) scene.remove(instancedMeshes[t]); instancedMeshes[t] = null; }
   const buckets = {};
-  BLOCK_TYPES.forEach(t => buckets[t] = []);
-  for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
-    for (let z = z0; z < z0 + CHUNK_SIZE; z++) {
-      for (let y = 0; y <= MAXY; y++) {
-        const type = world.get(key(x, y, z));
-        if (!type) continue;
-        if (isSolid(x+1,y,z) && isSolid(x-1,y,z) && isSolid(x,y+1,z) && isSolid(x,y-1,z) && isSolid(x,y,z+1) && isSolid(x,y,z-1)) continue;
-        buckets[type].push(x, y, z);
-      }
-    }
+  BLOCK_TYPES.forEach(t => { if (t !== "torch") buckets[t] = []; });
+  for (const [k, type] of world) {
+    if (type === "torch") continue;
+    const p = k.split(",");
+    const x = +p[0], y = +p[1], z = +p[2];
+    if (isSolid(x+1,y,z) && isSolid(x-1,y,z) && isSolid(x,y+1,z) && isSolid(x,y-1,z) && isSolid(x,y,z+1) && isSolid(x,y,z-1)) continue;
+    buckets[type].push(x, y, z);
   }
-  const meshes = {};
   const m = new THREE.Matrix4();
   for (const type in buckets) {
     const arr = buckets[type];
     const count = arr.length / 3;
-    if (!count || !MATERIALS[type]) continue;
+    if (!count) continue;
     const mesh = new THREE.InstancedMesh(boxGeo, MATERIALS[type], count);
     for (let i = 0; i < count; i++) {
       m.makeTranslation(arr[i*3]+0.5, arr[i*3+1]+0.5, arr[i*3+2]+0.5);
@@ -778,58 +679,32 @@ function buildChunkMesh(cx, cz) {
     }
     mesh.instanceMatrix.needsUpdate = true;
     scene.add(mesh);
-    meshes[type] = mesh;
+    instancedMeshes[type] = mesh;
   }
-  chunkMeshes.set(chunkKey(cx, cz), meshes);
+  rebuildTorches();
 }
-function removeChunkMesh(cx, cz) {
-  const ck = chunkKey(cx, cz);
-  const meshes = chunkMeshes.get(ck);
-  if (!meshes) return;
-  for (const t in meshes) scene.remove(meshes[t]);
-  chunkMeshes.delete(ck);
-}
-// Rebuilds the mesh for the chunk containing (x,z), plus any neighbor chunk whose
-// mesh could also change (a block right on the border affects whether the
-// neighbor's face there was previously hidden or exposed).
-function rebuildAffectedChunks(x, z) {
-  const cx = chunkCoord(x), cz = chunkCoord(z);
-  const touched = new Set([chunkKey(cx, cz)]);
-  const lx = x - cx * CHUNK_SIZE, lz = z - cz * CHUNK_SIZE;
-  if (lx === 0) touched.add(chunkKey(cx - 1, cz));
-  if (lx === CHUNK_SIZE - 1) touched.add(chunkKey(cx + 1, cz));
-  if (lz === 0) touched.add(chunkKey(cx, cz - 1));
-  if (lz === CHUNK_SIZE - 1) touched.add(chunkKey(cx, cz + 1));
-  for (const ck of touched) {
-    if (!chunks.has(ck)) continue;
-    const [tcx, tcz] = ck.split(",").map(Number);
-    buildChunkMesh(tcx, tcz);
-  }
-}
-
-// Loads/unloads chunks around a world position. Cheap to call every frame — it only
-// does work when the player has actually crossed into a new chunk.
-let lastChunkCX = null, lastChunkCZ = null;
-function updateChunks(pos, force) {
-  const pcx = chunkCoord(pos.x), pcz = chunkCoord(pos.z);
-  if (!force && pcx === lastChunkCX && pcz === lastChunkCZ) return;
-  lastChunkCX = pcx; lastChunkCZ = pcz;
-  for (let dx = -RENDER_CHUNKS; dx <= RENDER_CHUNKS; dx++) {
-    for (let dz = -RENDER_CHUNKS; dz <= RENDER_CHUNKS; dz++) {
-      const cx = pcx + dx, cz = pcz + dz;
-      if (chunks.has(chunkKey(cx, cz))) continue;
-      genChunk(cx, cz);
-      buildChunkMesh(cx, cz);
+// Torches aren't full cubes and each needs its own light, so they're kept
+// out of the instanced-cube system above and rebuilt as small individual
+// meshes + point lights whenever the world changes.
+function rebuildTorches() {
+  try {
+    torchObjects.forEach(t => { scene.remove(t.mesh); scene.remove(t.light); });
+    torchObjects = [];
+    for (const [k, type] of world) {
+      if (type !== "torch") continue;
+      const p = k.split(",");
+      const x = +p[0] + 0.5, y = +p[1], z = +p[2] + 0.5;
+      const mesh = new THREE.Mesh(torchGeo, torchMat);
+      mesh.position.set(x, y + 0.28, z);
+      scene.add(mesh);
+      const light = new THREE.PointLight(0xffaa55, 1.1, 7, 2);
+      light.position.set(x, y + 0.45, z);
+      scene.add(light);
+      torchObjects.push({ mesh, light });
     }
-  }
-  for (const ck of Array.from(chunks.keys())) {
-    const [cx, cz] = ck.split(",").map(Number);
-    if (Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) > RENDER_CHUNKS + UNLOAD_MARGIN) {
-      removeChunkMesh(cx, cz);
-      unloadChunk(cx, cz);
-    }
-  }
+  } catch (err) { console.error("rebuildTorches failed:", err); }
 }
+// rebuildMeshes() initial call also deferred to initMultiplayer().
 
 const highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02)),
@@ -862,7 +737,7 @@ for (let i = 0; i < 12; i++) {
   const s = new THREE.Sprite(cloudMat);
   const sc = 6 + Math.random() * 6;
   s.scale.set(sc, sc * 0.55, 1);
-  s.position.set(Math.random() * RENDER_CHUNKS * CHUNK_SIZE * 4 - RENDER_CHUNKS * CHUNK_SIZE * 2, MAXY + 8 + Math.random() * 6, Math.random() * RENDER_CHUNKS * CHUNK_SIZE * 4 - RENDER_CHUNKS * CHUNK_SIZE * 2);
+  s.position.set(Math.random() * SIZE * 2 - SIZE * 0.5, MAXY + 8 + Math.random() * 6, Math.random() * SIZE * 2 - SIZE * 0.5);
   scene.add(s);
   clouds.push({ spr: s, speed: 0.3 + Math.random() * 0.4 });
 }
@@ -902,31 +777,38 @@ function playPlace() { noiseBurst(0.1, 0.5, 300); tone(90, 0.12, "sine", 0.25); 
 function playJump() { tone(340, 0.12, "triangle", 0.18, 520); }
 function playStep() { noiseBurst(0.05, 0.18, 500); }
 
-/* ---------- Ambient music ---------- */
-const AMBIENT_SCALE = [174.61, 196.00, 220.00, 261.63, 293.66, 329.63, 349.23]; // calm F major-ish pentatonic-ish tones
-let ambientTimer = null;
-let windSource = null;
+/* ---------- Lo-fi ambient music ---------- */
+const LOFI_CHORDS = [
+  [261.63, 329.63, 392.00, 493.88], // Cmaj7
+  [220.00, 261.63, 329.63, 392.00], // Am7
+  [174.61, 220.00, 261.63, 329.63], // Fmaj7
+  [196.00, 246.94, 293.66, 349.23]  // G-ish
+];
+let ambientTimer = null, windSource = null, lofiFilter = null, chordIdx = 0;
 
-function playAmbientPad(freq) {
+function playChord(freqs) {
   if (!actx || muted) return;
-  const dur = 6 + Math.random() * 5;
-  const o1 = actx.createOscillator(), o2 = actx.createOscillator();
-  const g = actx.createGain();
-  o1.type = "sine"; o2.type = "triangle";
-  o1.frequency.value = freq;
-  o2.frequency.value = freq * 1.004;
-  g.gain.setValueAtTime(0.0001, actx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.3, actx.currentTime + Math.min(1.4, dur * 0.3));
-  g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-  o1.connect(g); o2.connect(g); g.connect(masterGain);
-  o1.start(); o2.start();
-  o1.stop(actx.currentTime + dur + 0.1);
-  o2.stop(actx.currentTime + dur + 0.1);
+  const dur = 5.5;
+  freqs.forEach((f, i) => {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = i === 0 ? "sine" : "triangle";
+    o.frequency.value = f * (Math.random() < 0.5 ? 0.5 : 1) * (1 + (Math.random() - 0.5) * 0.004);
+    g.gain.setValueAtTime(0.0001, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.16, actx.currentTime + 1.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(lofiFilter);
+    o.start(); o.stop(actx.currentTime + dur + 0.1);
+  });
 }
 function scheduleAmbientNote() {
-  const freq = AMBIENT_SCALE[Math.floor(Math.random() * AMBIENT_SCALE.length)] * (Math.random() < 0.25 ? 0.5 : 1);
-  playAmbientPad(freq);
-  ambientTimer = setTimeout(scheduleAmbientNote, 1800 + Math.random() * 2000);
+  playChord(LOFI_CHORDS[chordIdx % LOFI_CHORDS.length]);
+  chordIdx++;
+  ambientTimer = setTimeout(scheduleAmbientNote, 4200);
+}
+function playVinylPop() {
+  if (!actx) return;
+  if (!muted) noiseBurst(0.03, 0.1, 4000 + Math.random() * 2000);
+  setTimeout(playVinylPop, 350 + Math.random() * 900);
 }
 function startWindLayer() {
   if (windSource || !actx) return;
@@ -938,15 +820,21 @@ function startWindLayer() {
   windSource.buffer = buf;
   windSource.loop = true;
   const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500;
-  const g = actx.createGain(); g.gain.value = 0.1;
+  const g = actx.createGain(); g.gain.value = 0.08;
   windSource.connect(lp); lp.connect(g); g.connect(masterGain);
   windSource.start();
 }
 function startAmbientMusic() {
+  if (!lofiFilter) {
+    lofiFilter = actx.createBiquadFilter();
+    lofiFilter.type = "lowpass"; lofiFilter.frequency.value = 2200; // warm, muffled "tape" tone
+    lofiFilter.connect(masterGain);
+  }
   if (!ambientTimer) scheduleAmbientNote();
   startWindLayer();
+  playVinylPop();
 }
-/* ---------- End ambient music ---------- */
+/* ---------- End lo-fi ambient music ---------- */
 
 document.getElementById("muteBtn").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
@@ -958,15 +846,27 @@ document.getElementById("muteBtn").addEventListener("pointerdown", (e) => {
   } catch (err) { console.error("mute toggle failed:", err); }
 });
 
+let resources = { coalore: 0, goldore: 0 };
+function updateResourceHUD() {
+  document.getElementById("rCoal").textContent = resources.coalore;
+  document.getElementById("rGold").textContent = resources.goldore;
+}
+
 let selectedBlockIdx = 0;
 let selectedBlock = BLOCK_TYPES[selectedBlockIdx];
 const hotbarEl = document.getElementById("hotbar");
-const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass", coal_ore: "coalOre", iron_ore: "ironOre", gold_ore: "goldOre", diamond_ore: "diamondOre", torch: "torchIcon" };
+const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass", coalore: "coalore", goldore: "goldore", torch: "torch" };
 
+let lastNonTorchIdx = 0;
 function selectBlockByIndex(idx) {
-  selectedBlockIdx = (idx + BLOCK_TYPES.length) % BLOCK_TYPES.length;
-  selectedBlock = BLOCK_TYPES[selectedBlockIdx];
-  document.querySelectorAll(".slot").forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+  try {
+    selectedBlockIdx = (idx + BLOCK_TYPES.length) % BLOCK_TYPES.length;
+    selectedBlock = BLOCK_TYPES[selectedBlockIdx];
+    if (selectedBlock !== "torch") lastNonTorchIdx = selectedBlockIdx;
+    const slots = document.querySelectorAll(".slot");
+    slots.forEach((s, si) => s.classList.toggle("selected", si === selectedBlockIdx));
+    if (slots[selectedBlockIdx]) slots[selectedBlockIdx].scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  } catch (err) { console.error("selectBlockByIndex failed:", err); }
 }
 
 BLOCK_TYPES.forEach((type, i) => {
@@ -996,7 +896,7 @@ BLOCK_TYPES.forEach((type, i) => {
   const cctx = c.getContext("2d"); cctx.imageSmoothingEnabled = false;
   cctx.drawImage(texCanvases[iconTexFor[type]], 0, 0);
   cell.appendChild(c);
-  const label = document.createElement("div"); label.className = "invLabel"; label.textContent = type.replace(/_/g, " ");
+  const label = document.createElement("div"); label.className = "invLabel"; label.textContent = type;
   cell.appendChild(label);
   cell.addEventListener("pointerdown", (e) => { e.stopPropagation(); selectBlockByIndex(i); closeInventory(); });
   inventoryGridEl.appendChild(cell);
@@ -1057,20 +957,19 @@ function moveHorizontal(axis, delta) {
   player.pos.y = oldY;
 }
 
-// Finds a spawn Y that is guaranteed clear of solid blocks (e.g. a tree that
-// generated on the spawn tile) and has solid ground directly beneath it, so
-// the player never spawns embedded in terrain (which is what "stuck on
-// spawn" actually is - collision can't push you out of a block you start
-// inside of). Scans from bedrock up so it works no matter what's built there.
+// Finds a spawn Y at or above the natural surface (never inside an
+// underground cave), scanning upward past anything solid - e.g. a tree -
+// until it finds a real 2-block gap to stand in.
 function findClearSpawnY(x, z) {
-  for (let y = 1; y < MAXY + 8; y++) {
-    if (!isSolid(x, y, z) && !isSolid(x, y + 1, z) && isSolid(x, y - 1, z)) return y;
+  const groundH = terrainHeight(x, z);
+  for (let y = groundH + 1; y < MAXY + 8; y++) {
+    if (!isSolid(x, y, z) && !isSolid(x, y + 1, z)) return y;
   }
-  return terrainHeight(x, z) + 4;
+  return groundH + 4;
 }
 
 const player = {
-  pos: new THREE.Vector3(CHUNK_SIZE / 2, MAXY, CHUNK_SIZE / 2),
+  pos: new THREE.Vector3(SIZE / 2, MAXY, SIZE / 2),
   vel: new THREE.Vector3(0, 0, 0),
   yaw: Math.PI * 0.25, pitch: -0.15,
   height: 1.7, eye: 1.55, radius: 0.32,
@@ -1222,7 +1121,7 @@ function raycastVoxel(origin, dir, maxDist) {
     if (tMaxX < tMaxY && tMaxX < tMaxZ) { x += stepX; dist = tMaxX; tMaxX += tDeltaX; }
     else if (tMaxY < tMaxZ) { y += stepY; dist = tMaxY; tMaxY += tDeltaY; }
     else { z += stepZ; dist = tMaxZ; tMaxZ += tDeltaZ; }
-    if (isTargetable(x, y, z)) return { hit: { x, y, z }, prev: { x: px, y: py, z: pz } };
+    if (isSolid(x, y, z)) return { hit: { x, y, z }, prev: { x: px, y: py, z: pz } };
   }
   return null;
 }
@@ -1245,108 +1144,161 @@ function updateRaycastTarget() {
 function breakBlock() {
   if (!currentTarget) return;
   const { x, y, z } = currentTarget.hit;
-  const k = key(x, y, z);
-  if (torches.has(k)) {
-    removeTorch(x, y, z);
-    recordEdit(x, y, z, null);
-    playBreak();
-    if (mpRPC) mpRPC.call("block", { op: "b", x, y, z }, mpRPC.Mode.OTHERS);
-    return;
-  }
   if (y === 0) return;
-  world.delete(k);
-  recordEdit(x, y, z, null);
+  const minedType = world.get(key(x, y, z));
+  world.delete(key(x, y, z));
+  edits.set(key(x, y, z), null);
   playBreak();
-  rebuildAffectedChunks(x, z);
+  rebuildMeshes();
   if (mpRPC) mpRPC.call("block", { op: "b", x, y, z }, mpRPC.Mode.OTHERS);
+  if (resources.hasOwnProperty(minedType)) {
+    resources[minedType]++;
+    updateResourceHUD();
+  }
+  scheduleAutoSave();
 }
 
+/* ---------- Save / Load (solo play only - a multiplayer room's world is
+   shared and ephemeral, so it isn't persisted locally) ---------- */
+const SAVE_KEY = "strataSave";
+function saveGame() {
+  if (mpActive) return false;
+  try {
+    const editList = [];
+    for (const [k, v] of edits) editList.push(k + "," + (v === null ? -1 : BLOCK_TYPES.indexOf(v)));
+    const save = {
+      seed: WORLD_SEED,
+      edits: editList.join(";"),
+      pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
+      yaw: player.yaw, pitch: player.pitch,
+      resources
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    return true;
+  } catch (err) { console.error("saveGame failed:", err); return false; }
+}
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const save = JSON.parse(raw);
+    WORLD_SEED = save.seed;
+    edits.clear();
+    if (save.edits) {
+      save.edits.split(";").forEach((entry) => {
+        const parts = entry.split(",");
+        if (parts.length !== 4) return;
+        const idx = +parts[3];
+        edits.set(parts[0] + "," + parts[1] + "," + parts[2], idx === -1 ? null : BLOCK_TYPES[idx]);
+      });
+    }
+    if (save.resources) resources = Object.assign({ coalore: 0, goldore: 0 }, save.resources);
+    updateResourceHUD();
+    world.clear(); loadedChunks.clear(); treeSpots = [];
+    const px = save.pos ? save.pos.x : 0, pz = save.pos ? save.pos.z : 0;
+    ensureChunksLoaded(Math.floor(px), Math.floor(pz));
+    rebuildMeshes();
+    if (save.pos) player.pos.set(save.pos.x, save.pos.y, save.pos.z);
+    if (typeof save.yaw === "number") player.yaw = save.yaw;
+    if (typeof save.pitch === "number") player.pitch = save.pitch;
+    return true;
+  } catch (err) { console.error("loadGame failed:", err); return false; }
+}
+function hasSavedGame() {
+  try { return !!localStorage.getItem(SAVE_KEY); } catch (err) { return false; }
+}
+let autoSaveTimer = null;
+function scheduleAutoSave() {
+  if (mpActive) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveGame, 2500);
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
+window.addEventListener("beforeunload", () => { saveGame(); });
+/* ---------- End save / load ---------- */
+
 function placeBlock() {
-  if (!currentTarget) return;
-  const { x, y, z } = currentTarget.prev;
-  if (y < 0 || y >= MAXY) return;
-  const feetCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y), z: Math.floor(player.pos.z) };
-  const headCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y + player.height * 0.9), z: Math.floor(player.pos.z) };
-  if ((x === feetCell.x && y === feetCell.y && z === feetCell.z) || (x === headCell.x && y === headCell.y && z === headCell.z)) return;
-  const k = key(x, y, z);
-  if (world.has(k) || torches.has(k)) return;
-  if (selectedBlock === "torch") {
-    if (!isSolid(x, y - 1, z)) return; // torches need a solid block underneath to stand on
-    addTorch(x, y, z);
-    recordEdit(x, y, z, "torch");
+  try {
+    if (!currentTarget) return;
+    const { x, y, z } = currentTarget.prev;
+    if (y < 0 || y >= MAXY) return;
+    const feetCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y), z: Math.floor(player.pos.z) };
+    const headCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y + player.height * 0.9), z: Math.floor(player.pos.z) };
+    if ((x === feetCell.x && y === feetCell.y && z === feetCell.z) || (x === headCell.x && y === headCell.y && z === headCell.z)) return;
+    if (world.has(key(x, y, z))) return;
+    const placedType = selectedBlock;
+    world.set(key(x, y, z), placedType);
+    edits.set(key(x, y, z), placedType);
     playPlace();
-    if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: "torch" }, mpRPC.Mode.OTHERS);
-    return;
-  }
-  world.set(k, selectedBlock);
-  recordEdit(x, y, z, selectedBlock);
-  playPlace();
-  rebuildAffectedChunks(x, z);
-  if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: selectedBlock }, mpRPC.Mode.OTHERS);
+    rebuildMeshes();
+    if (mpRPC) mpRPC.call("block", { op: "p", x, y, z, t: placedType }, mpRPC.Mode.OTHERS);
+    if (placedType === "torch") selectBlockByIndex(lastNonTorchIdx);
+    scheduleAutoSave();
+  } catch (err) { console.error("placeBlock failed:", err); }
 }
 
 /* ---------- Multiplayer (Playroom - hosted relay, no server needed) ---------- */
 let mpRPC = null, mpMyPlayer = null, mpActive = false;
-const remotePlayers = {};
-function makeNameSprite(name) {
-  const W = 160, H = 40;
-  const c = document.createElement("canvas");
-  c.width = W; c.height = H;
+let playerName = "Player";
+function makeNameSprite(text) {
+  const c = document.createElement("canvas"); c.width = 128; c.height = 32;
   const ctx = c.getContext("2d");
-  ctx.font = "bold 22px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "rgba(0,0,0,.85)";
-  ctx.fillStyle = "#fff";
-  ctx.strokeText(name, W / 2, H / 2);
-  ctx.fillText(name, W / 2, H / 2);
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  spr.scale.set(1.1, 0.275, 1);
+  ctx.fillStyle = "rgba(10,14,23,.65)"; ctx.fillRect(0, 0, 128, 32);
+  ctx.fillStyle = "#fff"; ctx.font = "bold 18px monospace"; ctx.textAlign = "center";
+  ctx.fillText(text.slice(0, 14), 64, 22);
+  const mat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(1.4, 0.35, 1);
   return spr;
 }
+const remotePlayers = {};
+function loadPlayroomScript() {
+  return new Promise((resolve) => {
+    if (typeof Playroom !== "undefined") { resolve(true); return; }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/playroomkit/multiplayer.full.umd.js";
+    s.crossOrigin = "anonymous";
+    s.onload = () => resolve(typeof Playroom !== "undefined");
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
 async function initMultiplayer() {
-  if (typeof Playroom === "undefined") { WORLD_SEED = Math.random() * 4000; return; }
-  const { insertCoin, isHost, myPlayer, onPlayerJoin, getState, setState, RPC } = Playroom;
-  try { await insertCoin({ maxPlayersPerRoom: 12 }); }
-  catch (err) { WORLD_SEED = Math.random() * 4000; return; }
-  mpActive = true; mpRPC = RPC; mpMyPlayer = myPlayer;
-  myPlayer().setState("name", playerName);
-  if (isHost()) { WORLD_SEED = Math.random() * 4000; setState("worldSeed", WORLD_SEED); }
-  else {
-    while (getState("worldSeed") === undefined) await new Promise(r => setTimeout(r, 150));
-    WORLD_SEED = getState("worldSeed");
-  }
-  RPC.register("block", (data) => {
-    const k = key(data.x, data.y, data.z);
-    if (data.op === "b") {
-      if (torches.has(k)) removeTorch(data.x, data.y, data.z);
-      world.delete(k);
-      recordEdit(data.x, data.y, data.z, null);
-      rebuildAffectedChunks(data.x, data.z);
-    } else if (data.t === "torch") {
-      addTorch(data.x, data.y, data.z);
-      recordEdit(data.x, data.y, data.z, "torch");
-    } else {
-      world.set(k, data.t);
-      recordEdit(data.x, data.y, data.z, data.t);
-      rebuildAffectedChunks(data.x, data.z);
+  try {
+    const ok = await loadPlayroomScript();
+    if (!ok) { WORLD_SEED = Math.random() * 4000; return; }
+    const { insertCoin, isHost, myPlayer, onPlayerJoin, getState, setState, RPC } = Playroom;
+    try { await insertCoin({ maxPlayersPerRoom: 12 }); }
+    catch (err) { console.error("insertCoin failed:", err); WORLD_SEED = Math.random() * 4000; return; }
+    mpActive = true; mpRPC = RPC; mpMyPlayer = myPlayer;
+    myPlayer().setState("name", playerName);
+    if (isHost()) { WORLD_SEED = Math.random() * 4000; setState("worldSeed", WORLD_SEED); }
+    else {
+      while (getState("worldSeed") === undefined) await new Promise(r => setTimeout(r, 150));
+      WORLD_SEED = getState("worldSeed");
     }
+  RPC.register("block", (data) => {
+    if (data.op === "b") world.delete(key(data.x, data.y, data.z));
+    else world.set(key(data.x, data.y, data.z), data.t);
+    rebuildMeshes();
   });
   const avatarMat = new THREE.MeshLambertMaterial({ color: 0xff5566 });
   onPlayerJoin((p) => {
     if (p.id === myPlayer().id) return;
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.7, 0.6), avatarMat);
-    const initialName = p.getState("name") || null;
-    const label = makeNameSprite(initialName || "Player");
-    label.position.set(0, 1.15, 0);
-    mesh.add(label);
     scene.add(mesh);
-    remotePlayers[p.id] = { mesh, p, labeledName: initialName };
-    p.onQuit(() => { scene.remove(mesh); delete remotePlayers[p.id]; });
+    remotePlayers[p.id] = { mesh, p };
+    p.onQuit(() => {
+      scene.remove(mesh);
+      if (remotePlayers[p.id] && remotePlayers[p.id].nameSprite) scene.remove(remotePlayers[p.id].nameSprite);
+      delete remotePlayers[p.id];
+    });
   });
+  } catch (err) {
+    console.error("initMultiplayer failed, falling back to solo:", err);
+    mpActive = false; mpRPC = null;
+    if (!WORLD_SEED) WORLD_SEED = Math.random() * 4000;
+  }
 }
 /* ---------- End multiplayer ---------- */
 
@@ -1434,8 +1386,11 @@ window.addEventListener("touchend", endLookTouch);
 window.addEventListener("touchcancel", endLookTouch);
 
 canvas.addEventListener("click", () => {
-  if (document.pointerLockElement !== canvas) {
-    canvas.requestPointerLock();
+  if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+    try {
+      const p = canvas.requestPointerLock();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (err) { console.error("requestPointerLock unavailable:", err); }
   }
 });
 
@@ -1552,16 +1507,53 @@ function togglePause() {
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     input.jumpHeld = false; keyboardMineHeld = false; breakHeld = false; isMouseLooking = false; lookTouchId = null;
     controlsScreenEl.style.display = "none";
+    optionsScreenEl.style.display = "none";
     pauseScreenEl.style.display = "flex";
   } else {
     pauseScreenEl.style.display = "none";
     controlsScreenEl.style.display = "none";
+    optionsScreenEl.style.display = "none";
   }
 }
 
 document.getElementById("pauseBtn").addEventListener("pointerdown", (e) => { e.stopPropagation(); togglePause(); });
 document.getElementById("resumeBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+document.getElementById("saveBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (mpActive) { showToast("Multiplayer worlds aren't saved locally", true); return; }
+  const ok = saveGame();
+  showToast(ok ? "Progress saved" : "Save failed", !ok);
+});
 document.getElementById("mainMenuBtn").addEventListener("click", (e) => { e.stopPropagation(); location.reload(); });
+
+/* ---------- Options ---------- */
+const optionsScreenEl = document.getElementById("optionsScreen");
+const touchToggleBtn = document.getElementById("touchToggleBtn");
+let touchControlsOn = localStorage.getItem("strataTouchControls") !== "off";
+function applyTouchControlsVisibility() {
+  const disp = touchControlsOn ? "flex" : "none";
+  document.getElementById("joyBase").style.display = touchControlsOn ? "block" : "none";
+  document.getElementById("actions").style.display = disp;
+  touchToggleBtn.textContent = "TOUCH CONTROLS: " + (touchControlsOn ? "ON" : "OFF");
+}
+applyTouchControlsVisibility();
+touchToggleBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  touchControlsOn = !touchControlsOn;
+  try { localStorage.setItem("strataTouchControls", touchControlsOn ? "on" : "off"); } catch (err) {}
+  applyTouchControlsVisibility();
+});
+document.getElementById("optionsBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  pauseScreenEl.style.display = "none";
+  optionsScreenEl.style.display = "flex";
+});
+document.getElementById("optionsBackBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  optionsScreenEl.style.display = "none";
+  pauseScreenEl.style.display = "flex";
+});
+/* ---------- End options ---------- */
 document.getElementById("controlsBtn").addEventListener("click", (e) => {
   e.stopPropagation();
   pauseScreenEl.style.display = "none";
@@ -1581,6 +1573,33 @@ document.getElementById("resetBindingsBtn").addEventListener("click", (e) => {
   renderControlsList();
 });
 /* ---------- End pause menu & control remapping ---------- */
+
+function showToast(msg, isError) {
+  let el = document.getElementById("errToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "errToast";
+    el.style.cssText = "position:fixed;left:50%;bottom:130px;transform:translateX(-50%);max-width:90vw;color:#fff;padding:10px 16px;font-family:monospace;font-size:11px;z-index:999;border-radius:4px;pointer-events:none;white-space:pre-wrap;";
+    document.body.appendChild(el);
+  }
+  el.style.background = isError ? "#3a1010" : "#123a1a";
+  el.style.border = "2px solid " + (isError ? "#a33" : "#3a7a4a");
+  el.textContent = (isError ? "⚠ " : "✓ ") + msg;
+  el.style.display = "block";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = "none"; }, isError ? 9000 : 2200);
+}
+function showErrorToast(msg) { showToast(msg, true); }
+window.addEventListener("error", (e) => {
+  const msg = (e.error && (e.error.stack || e.error.message)) || e.message || "unknown error";
+  console.error("Uncaught error:", msg, e.filename, e.lineno, e.colno);
+  showErrorToast(msg + (e.filename ? ` @ ${e.filename}:${e.lineno}` : ""));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = (e.reason && (e.reason.stack || e.reason.message)) || String(e.reason);
+  console.error("Unhandled rejection:", msg);
+  showErrorToast("Promise: " + msg);
+});
 
 window.addEventListener("keydown", (e) => {
   if (awaitingBindingFor) {
@@ -1627,13 +1646,14 @@ function updateDayNight(dt) {
   const skyColor = new THREE.Color().lerpColors(NIGHT, DAY, day);
   scene.background = skyColor;
   scene.fog.color = skyColor;
-  sun.intensity = 0.15 + day * 0.95;
-  hemi.intensity = 0.25 + day * 0.55;
+  sun.intensity = 0.08 + day * 1.02;
+  hemi.intensity = 0.14 + day * 0.66;
   starMat.opacity = clamp(1 - day * 1.3, 0, 0.9);
 }
 
 let lastTime = performance.now();
 let started = false;
+let chunkTimer = 0;
 
 function animate(now) {
   requestAnimationFrame(animate);
@@ -1648,13 +1668,18 @@ function animate(now) {
 
   if (!paused && !inventoryOpen) {
     updatePhysics(dt);
-    updateChunks(player.pos);
     updateRaycastTarget();
     updateDayNight(dt);
 
     if ((breakHeld || keyboardMineHeld) && currentTarget) {
       const t = performance.now();
       if (t - lastBreakTime > 280) { lastBreakTime = t; breakBlock(); }
+    }
+
+    chunkTimer += dt;
+    if (chunkTimer > 0.6) {
+      chunkTimer = 0;
+      if (ensureChunksLoaded(Math.floor(player.pos.x), Math.floor(player.pos.z))) rebuildMeshes();
     }
   }
 
@@ -1671,15 +1696,11 @@ function animate(now) {
       if (pos) rp.mesh.position.set(pos.x, pos.y + 0.85, pos.z);
       const ry = rp.p.getState("yaw");
       if (typeof ry === "number") rp.mesh.rotation.y = ry;
-      const nm = rp.p.getState("name");
-      if (nm && nm !== rp.labeledName) {
-        rp.labeledName = nm;
-        const oldLabel = rp.mesh.children[0];
-        if (oldLabel) rp.mesh.remove(oldLabel);
-        const label = makeNameSprite(nm);
-        label.position.set(0, 1.15, 0);
-        rp.mesh.add(label);
+      if (!rp.nameSprite) {
+        const nm = rp.p.getState("name");
+        if (nm) { rp.nameSprite = makeNameSprite(nm); scene.add(rp.nameSprite); }
       }
+      if (rp.nameSprite && pos) rp.nameSprite.position.set(pos.x, pos.y + 2.1, pos.z);
     }
   }
 
@@ -1691,33 +1712,40 @@ function animate(now) {
 }
 let netTimer = 0;
 
-async function startGame(useMultiplayer) {
+async function startGame(mode) {
+  playerName = document.getElementById("playerNameInput").value.trim() || "Player";
+  try { localStorage.setItem("strataPlayerName", playerName); } catch (err) {}
   document.getElementById("startScreen").style.display = "none";
-  if (useMultiplayer) { await initMultiplayer(); }
-  else { WORLD_SEED = Math.random() * 4000; }
-  const spawnX = CHUNK_SIZE >> 1, spawnZ = CHUNK_SIZE >> 1;
-  updateChunks(new THREE.Vector3(spawnX, 0, spawnZ), true);
-  const spawnY = findClearSpawnY(spawnX, spawnZ);
-  player.pos.set(spawnX + 0.5, spawnY, spawnZ + 0.5);
-  player.vel.set(0, 0, 0);
   initAudio();
-  if (actx.state === "suspended") { actx.resume().then(startAmbientMusic); }
-  else { startAmbientMusic(); }
+  const audioReady = actx.state === "suspended" ? actx.resume() : Promise.resolve();
+  if (mode === "multiplayer") { await initMultiplayer(); }
+  else if (mode !== "continue") { WORLD_SEED = Math.random() * 4000; }
+
+  const loaded = mode === "continue" ? loadGame() : false;
+  if (!loaded) {
+    if (mode === "continue") WORLD_SEED = Math.random() * 4000;
+    loadedChunks.clear(); treeSpots = []; edits.clear();
+    ensureChunksLoaded(0, 0);
+    rebuildMeshes();
+    const spawnY = findClearSpawnY(0, 0);
+    player.pos.set(0.5, spawnY, 0.5);
+    player.vel.set(0, 0, 0);
+  }
+  await audioReady;
+  startAmbientMusic();
   started = true;
   handleResize();
   lastTime = performance.now();
-  const welcomeEl = document.getElementById("welcome");
-  welcomeEl.textContent = `Welcome, ${playerName}!`;
-  welcomeEl.classList.remove("fade");
-  setTimeout(() => welcomeEl.classList.add("fade"), 3200);
   setTimeout(() => document.getElementById("tips").classList.add("fade"), 6000);
 }
-document.getElementById("playBtn").addEventListener("click", (e) => { e.stopPropagation(); capturePlayerName(); startGame(false); });
-document.getElementById("mpBtn").addEventListener("click", (e) => { e.stopPropagation(); capturePlayerName(); startGame(true); });
-document.getElementById("nameInput").addEventListener("keydown", (e) => {
-  e.stopPropagation();
-  if (e.code === "Enter") { capturePlayerName(); startGame(false); }
-});
+document.getElementById("playBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("solo"); });
+document.getElementById("mpBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("multiplayer"); });
+document.getElementById("continueBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame("continue"); });
+if (hasSavedGame()) document.getElementById("continueBtn").style.display = "block";
+try {
+  const savedName = localStorage.getItem("strataPlayerName");
+  if (savedName) document.getElementById("playerNameInput").value = savedName;
+} catch (err) {}
 
 handleResize();
 animate(performance.now());
