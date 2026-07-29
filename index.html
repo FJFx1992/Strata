@@ -1,5 +1,4 @@
 
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -91,6 +90,9 @@
   #crosshair .h{ width:18px; height:2px; top:8px; left:0; }
   #crosshair .v{ width:2px; height:18px; top:0; left:8px; }
   #crosshair.active div{ background:var(--accent); }
+  #crosshair.door div{ background:#7bc9ff; }
+
+  #btnPlace.doorMode{ color:#1f5a7a; }
 
   #coords{
     position:absolute; top:14px; left:14px; padding:8px 12px;
@@ -251,7 +253,7 @@
     <div id="pauseBtn" class="iconBtn round accent">⏸</div>
     <div id="muteBtn" class="iconBtn round accent">🔊</div>
   </div>
-  <div id="tips">Deck Stick/WASD: Move • Right Stick/Mouse/Drag: Look • R2/⛏: Mine • L2/▦: Build</div>
+  <div id="tips">Deck Stick/WASD: Move • Right Stick/Mouse/Drag: Look • R2/⛏: Mine • L2/▦: Build/Use Door</div>
 
   <div id="hotbar"></div>
 
@@ -316,10 +318,11 @@
     <b>Jump:</b> A Button / Space / ⤒ Button<br>
     <b>Mine:</b> R2 / Right Click / ⛏ Button<br>
     <b>Build:</b> L2 / Left Click / ▦ Button<br>
+    <b>Open/Close Door:</b> Aim at a door and use the Build action<br>
     <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
     <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
     <b>Inventory:</b> E / 🎒 Button<br>
-    <b>New:</b> Dig for caves &amp; ore, place torches for light
+    <b>New:</b> Dig for caves &amp; ore, place torches for light, build doors you can open
   </div>
   <input id="playerNameInput" class="panel" type="text" maxlength="16" placeholder="Your name" style="font-family:var(--font-b);font-size:14px;color:#fff;background:var(--panel-dark);text-align:center;padding:10px;width:200px;outline:none;">
   <button id="playBtn" class="panel">▶ PLAY</button>
@@ -341,7 +344,7 @@ const MOVE_SPEED = 4.4;
 const CYCLE_SECONDS = 260;
 let WORLD_SEED = 0; // set for real in initMultiplayer()
 
-const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass","coalore","goldore","torch"];
+const BLOCK_TYPES = ["grass","dirt","stone","wood","leaves","sand","brick","glass","coalore","goldore","torch","door"];
 
 // Remappable keyboard controls (movement and look are excluded - those stay on WASD/mouse).
 const DEFAULT_BINDINGS = {
@@ -357,7 +360,7 @@ const DEFAULT_BINDINGS = {
 const BINDING_LABELS = {
   jump: "Jump",
   mine: "Mine / Break",
-  place: "Build / Place",
+  place: "Build / Place / Use Door",
   hotbar1: "Hotbar Slot 1",
   hotbar2: "Hotbar Slot 2",
   hotbar3: "Hotbar Slot 3",
@@ -483,6 +486,14 @@ function buildTextures() {
     ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(8, 5, 3, 0, 7); ctx.fill();
     ctx.fillStyle = "#fff2b0"; ctx.beginPath(); ctx.arc(8, 4, 1.4, 0, 7); ctx.fill();
   });
+  texCanvases.door = makeCanvas(S, (ctx) => {
+    noisyFill(ctx, S, [122, 84, 48], 14, 41);
+    ctx.strokeStyle = "rgba(70,45,20,.8)"; ctx.lineWidth = 1;
+    ctx.strokeRect(1.5, 1.5, S - 3, S - 3);
+    ctx.strokeRect(2.5, 2.5, 5, 6); ctx.strokeRect(9.5, 2.5, 5, 6);
+    ctx.strokeRect(2.5, 9.5, 5, 6); ctx.strokeRect(9.5, 9.5, 5, 6);
+    ctx.fillStyle = "#f4d488"; ctx.beginPath(); ctx.arc(11.5, 8.5, 1, 0, 7); ctx.fill();
+  });
   texCanvases.sand = makeCanvas(S, (ctx) => noisyFill(ctx, S, [223, 204, 150], 18, 11));
   texCanvases.brick = makeCanvas(S, (ctx) => {
     noisyFill(ctx, S, [150, 60, 46], 16, 12);
@@ -547,9 +558,20 @@ const MATERIALS = {
   brick: [faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,TOP), faceMat(TEX.brick,BOT), faceMat(TEX.brick,SIDE), faceMat(TEX.brick,SIDE)],
   glass: (() => { const m = new THREE.MeshLambertMaterial({ map: TEX.glass, transparent: true, opacity: 0.55 }); return [m,m,m,m,m,m]; })(),
   coalore: [faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,TOP), faceMat(TEX.coalore,BOT), faceMat(TEX.coalore,SIDE), faceMat(TEX.coalore,SIDE)],
-  goldore: [faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,TOP), faceMat(TEX.goldore,BOT), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE)]
+  goldore: [faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,TOP), faceMat(TEX.goldore,BOT), faceMat(TEX.goldore,SIDE), faceMat(TEX.goldore,SIDE)],
+  door: [faceMat(TEX.door,SIDE), faceMat(TEX.door,SIDE), faceMat(TEX.door,TOP), faceMat(TEX.door,BOT), faceMat(TEX.door,SIDE), faceMat(TEX.door,SIDE)]
 };
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+// Doors are two blocks tall (they occupy a "door" cell plus a "doorTop"
+// cell directly above it - see placeBlock/breakBlock/doorBaseKey). The
+// panel is a bit short of exactly 2.0 so it still reads as sitting inside
+// its two cells rather than clipping the blocks above/below.
+const DOOR_HEIGHT = 1.96;
+// Doors use a thin panel geometry (not the full 1x1x1 cube) so they read as
+// an actual door rather than a solid block with a picture on it. Full width
+// so it fills the cell opening, height spans both cells, and shallow depth
+// for a real "panel" look.
+const doorGeo = new THREE.BoxGeometry(1, DOOR_HEIGHT, 0.14);
 const torchGeo = new THREE.BoxGeometry(0.15, 0.55, 0.15);
 const torchMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
 let torchObjects = [];
@@ -655,16 +677,52 @@ function placeTree(x, h, z) {
 
 function isSolid(x, y, z) { return world.has(key(x, y, z)); }
 
+// Thin/transparent blocks (doors, glass) shouldn't hide a neighboring
+// block's face just because they're technically "occupying" the cell -
+// otherwise a block sitting under/beside a door or glass pane can look like
+// it vanished even though it's still there in the data.
+function isOccluding(x, y, z) {
+  const k = key(x, y, z);
+  if (!world.has(k)) return false;
+  const t = world.get(k);
+  if (t === "door" || t === "doorTop" || t === "glass") return false;
+  return true;
+}
+
+// Doors occupy two vertically-stacked cells: "door" at the base (where it's
+// hinged/rendered) and "doorTop" directly above it, purely as a collision/
+// occlusion placeholder - it has no mesh of its own. Given any cell that's
+// part of a door (either half), returns the key of its base "door" cell, or
+// null if the cell isn't part of a door at all.
+function doorBaseKey(x, y, z) {
+  const t = world.get(key(x, y, z));
+  if (t === "door") return key(x, y, z);
+  if (t === "doorTop") return key(x, y - 1, z);
+  return null;
+}
+
+// Doors occupy a cell (isSolid is true for them) but shouldn't block
+// movement while open. Collision code should call isBlocking, not isSolid.
+const openDoors = new Set();
+function isBlocking(x, y, z) {
+  const k = key(x, y, z);
+  if (!world.has(k)) return false;
+  const t = world.get(k);
+  if (t === "door" && openDoors.has(k)) return false;
+  if (t === "doorTop" && openDoors.has(key(x, y - 1, z))) return false;
+  return true;
+}
+
 const instancedMeshes = {};
 function rebuildMeshes() {
   for (const t in instancedMeshes) { if (instancedMeshes[t]) scene.remove(instancedMeshes[t]); instancedMeshes[t] = null; }
   const buckets = {};
-  BLOCK_TYPES.forEach(t => { if (t !== "torch") buckets[t] = []; });
+  BLOCK_TYPES.forEach(t => { if (t !== "torch" && t !== "door") buckets[t] = []; });
   for (const [k, type] of world) {
-    if (type === "torch") continue;
+    if (type === "torch" || type === "door" || type === "doorTop") continue;
     const p = k.split(",");
     const x = +p[0], y = +p[1], z = +p[2];
-    if (isSolid(x+1,y,z) && isSolid(x-1,y,z) && isSolid(x,y+1,z) && isSolid(x,y-1,z) && isSolid(x,y,z+1) && isSolid(x,y,z-1)) continue;
+    if (isOccluding(x+1,y,z) && isOccluding(x-1,y,z) && isOccluding(x,y+1,z) && isOccluding(x,y-1,z) && isOccluding(x,y,z+1) && isOccluding(x,y,z-1)) continue;
     buckets[type].push(x, y, z);
   }
   const m = new THREE.Matrix4();
@@ -682,6 +740,7 @@ function rebuildMeshes() {
     instancedMeshes[type] = mesh;
   }
   rebuildTorches();
+  syncDoors();
 }
 // Torches aren't full cubes and each needs its own light, so they're kept
 // out of the instanced-cube system above and rebuilt as small individual
@@ -704,6 +763,66 @@ function rebuildTorches() {
     }
   } catch (err) { console.error("rebuildTorches failed:", err); }
 }
+// Doors are kept out of the instanced-cube system too, since each one needs
+// its own rotation matrix to swing open/closed around a hinge edge, and that
+// rotation is animated smoothly over time rather than snapping instantly.
+// doors: key -> { mesh, x, y, z, angle (current, radians), target (radians) }
+const doors = new Map();
+const DOOR_SWING_SPEED = Math.PI * 2.4; // radians per second
+
+function updateDoorMatrix(d) {
+  const hinge = new THREE.Matrix4().makeTranslation(d.x, d.y + 1.0, d.z + 0.5);
+  const rot = new THREE.Matrix4().makeRotationY(d.angle);
+  const offset = new THREE.Matrix4().makeTranslation(0.5, 0, 0);
+  d.mesh.matrix.copy(new THREE.Matrix4().multiplyMatrices(hinge, rot).multiply(offset));
+}
+// Syncs the persistent `doors` map against the current world state: adds
+// meshes for newly-placed doors, removes meshes for doors that were mined.
+// Unlike a full rebuild, this preserves in-progress swing animations for
+// doors that already existed.
+function syncDoors() {
+  try {
+    for (const [k, type] of world) {
+      if (type !== "door" || doors.has(k)) continue;
+      const p = k.split(",");
+      const x = +p[0], y = +p[1], z = +p[2];
+      const mesh = new THREE.Mesh(doorGeo, MATERIALS.door);
+      mesh.matrixAutoUpdate = false;
+      const angle = openDoors.has(k) ? Math.PI / 2 : 0;
+      const d = { mesh, x, y, z, angle, target: angle };
+      updateDoorMatrix(d);
+      scene.add(mesh);
+      doors.set(k, d);
+    }
+    for (const k of Array.from(doors.keys())) {
+      if (world.get(k) !== "door") {
+        scene.remove(doors.get(k).mesh);
+        doors.delete(k);
+      }
+    }
+  } catch (err) { console.error("syncDoors failed:", err); }
+}
+// Advances any doors that are mid-swing. Called every animation frame.
+function updateDoorAnimations(dt) {
+  for (const d of doors.values()) {
+    if (d.angle === d.target) continue;
+    const dir = d.target > d.angle ? 1 : -1;
+    d.angle += dir * DOOR_SWING_SPEED * dt;
+    if ((dir > 0 && d.angle > d.target) || (dir < 0 && d.angle < d.target)) d.angle = d.target;
+    updateDoorMatrix(d);
+  }
+}
+// Toggles a door open/closed: called when the player uses the build/place
+// action while aiming at an existing door (see placeBlock()). Sets a target
+// angle; the actual swing plays out smoothly in updateDoorAnimations().
+function toggleDoor(k, forceOpen) {
+  const open = typeof forceOpen === "boolean" ? forceOpen : !openDoors.has(k);
+  if (open) openDoors.add(k); else openDoors.delete(k);
+  playDoorSound();
+  const d = doors.get(k);
+  if (d) d.target = open ? Math.PI / 2 : 0;
+}
+function playDoorSound() { noiseBurst(0.15, 0.4, 260); tone(150, 0.1, "square", 0.12); }
 // rebuildMeshes() initial call also deferred to initMultiplayer().
 
 const highlight = new THREE.LineSegments(
@@ -855,7 +974,7 @@ function updateResourceHUD() {
 let selectedBlockIdx = 0;
 let selectedBlock = BLOCK_TYPES[selectedBlockIdx];
 const hotbarEl = document.getElementById("hotbar");
-const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass", coalore: "coalore", goldore: "goldore", torch: "torch" };
+const iconTexFor = { grass: "grassTop", dirt: "dirt", stone: "stone", wood: "woodSide", leaves: "leaves", sand: "sand", brick: "brick", glass: "glass", coalore: "coalore", goldore: "goldore", torch: "torch", door: "door" };
 
 let lastNonTorchIdx = 0;
 function selectBlockByIndex(idx) {
@@ -930,7 +1049,7 @@ function collides(pos) {
   for (const [dx, dz] of corners) {
     const cx = Math.floor(pos.x + dx), cz = Math.floor(pos.z + dz);
     for (let cy = yMin; cy <= yMax; cy++) {
-      if (isSolid(cx, cy, cz)) return true;
+      if (isBlocking(cx, cy, cz)) return true;
     }
   }
   return false;
@@ -1131,13 +1250,22 @@ function updateRaycastTarget() {
   const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   currentTarget = raycastVoxel(camera.position, dir, REACH);
   const cross = document.getElementById("crosshair");
+  const btnPlace = document.getElementById("btnPlace");
   if (currentTarget) {
     highlight.visible = true;
     highlight.position.set(currentTarget.hit.x + 0.5, currentTarget.hit.y + 0.5, currentTarget.hit.z + 0.5);
     cross.classList.add("active");
+    const aimingDoor = doorBaseKey(currentTarget.hit.x, currentTarget.hit.y, currentTarget.hit.z) !== null;
+    cross.classList.toggle("door", aimingDoor);
+    if (btnPlace) {
+      btnPlace.textContent = aimingDoor ? "🚪" : "▦";
+      btnPlace.classList.toggle("doorMode", aimingDoor);
+    }
   } else {
     highlight.visible = false;
     cross.classList.remove("active");
+    cross.classList.remove("door");
+    if (btnPlace) { btnPlace.textContent = "▦"; btnPlace.classList.remove("doorMode"); }
   }
 }
 
@@ -1145,9 +1273,31 @@ function breakBlock() {
   if (!currentTarget) return;
   const { x, y, z } = currentTarget.hit;
   if (y === 0) return;
+  const baseKey = doorBaseKey(x, y, z);
+  if (baseKey) {
+    const [bx, by, bz] = baseKey.split(",").map(Number);
+    world.delete(key(bx, by, bz));
+    world.delete(key(bx, by + 1, bz));
+    edits.set(key(bx, by, bz), null);
+    edits.set(key(bx, by + 1, bz), null);
+    openDoors.delete(baseKey);
+    playBreak();
+    rebuildMeshes();
+    if (mpRPC) {
+      mpRPC.call("block", { op: "b", x: bx, y: by, z: bz }, mpRPC.Mode.OTHERS);
+      mpRPC.call("block", { op: "b", x: bx, y: by + 1, z: bz }, mpRPC.Mode.OTHERS);
+    }
+    if (resources.hasOwnProperty("door")) {
+      resources.door++;
+      updateResourceHUD();
+    }
+    scheduleAutoSave();
+    return;
+  }
   const minedType = world.get(key(x, y, z));
   world.delete(key(x, y, z));
   edits.set(key(x, y, z), null);
+  openDoors.delete(key(x, y, z));
   playBreak();
   rebuildMeshes();
   if (mpRPC) mpRPC.call("block", { op: "b", x, y, z }, mpRPC.Mode.OTHERS);
@@ -1165,13 +1315,14 @@ function saveGame() {
   if (mpActive) return false;
   try {
     const editList = [];
-    for (const [k, v] of edits) editList.push(k + "," + (v === null ? -1 : BLOCK_TYPES.indexOf(v)));
+    for (const [k, v] of edits) editList.push(k + "," + (v === null ? -1 : v === "doorTop" ? -2 : BLOCK_TYPES.indexOf(v)));
     const save = {
       seed: WORLD_SEED,
       edits: editList.join(";"),
       pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
       yaw: player.yaw, pitch: player.pitch,
-      resources
+      resources,
+      openDoors: Array.from(openDoors)
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
     return true;
@@ -1189,12 +1340,14 @@ function loadGame() {
         const parts = entry.split(",");
         if (parts.length !== 4) return;
         const idx = +parts[3];
-        edits.set(parts[0] + "," + parts[1] + "," + parts[2], idx === -1 ? null : BLOCK_TYPES[idx]);
+        edits.set(parts[0] + "," + parts[1] + "," + parts[2], idx === -1 ? null : idx === -2 ? "doorTop" : BLOCK_TYPES[idx]);
       });
     }
     if (save.resources) resources = Object.assign({ coalore: 0, goldore: 0 }, save.resources);
     updateResourceHUD();
     world.clear(); loadedChunks.clear(); treeSpots = [];
+    openDoors.clear();
+    if (Array.isArray(save.openDoors)) save.openDoors.forEach(k => openDoors.add(k));
     const px = save.pos ? save.pos.x : 0, pz = save.pos ? save.pos.z : 0;
     ensureChunksLoaded(Math.floor(px), Math.floor(pz));
     rebuildMeshes();
@@ -1220,13 +1373,44 @@ window.addEventListener("beforeunload", () => { saveGame(); });
 function placeBlock() {
   try {
     if (!currentTarget) return;
+    // If the player is aiming at an existing door (either half), "build"
+    // toggles it open/closed instead of trying to place a new block on it.
+    const hit = currentTarget.hit;
+    const hitBaseKey = doorBaseKey(hit.x, hit.y, hit.z);
+    if (hitBaseKey) {
+      toggleDoor(hitBaseKey);
+      if (mpRPC) mpRPC.call("door", { k: hitBaseKey, open: openDoors.has(hitBaseKey) }, mpRPC.Mode.OTHERS);
+      return;
+    }
     const { x, y, z } = currentTarget.prev;
     if (y < 0 || y >= MAXY) return;
     const feetCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y), z: Math.floor(player.pos.z) };
     const headCell = { x: Math.floor(player.pos.x), y: Math.floor(player.pos.y + player.height * 0.9), z: Math.floor(player.pos.z) };
-    if ((x === feetCell.x && y === feetCell.y && z === feetCell.z) || (x === headCell.x && y === headCell.y && z === headCell.z)) return;
-    if (world.has(key(x, y, z))) return;
+    const occupiesPlayer = (cx, cy, cz) =>
+      (cx === feetCell.x && cy === feetCell.y && cz === feetCell.z) ||
+      (cx === headCell.x && cy === headCell.y && cz === headCell.z);
     const placedType = selectedBlock;
+    if (placedType === "door") {
+      // Doors are two blocks tall, so the cell above the target also needs
+      // to be free (and in bounds) before placing.
+      if (y + 1 >= MAXY) return;
+      if (occupiesPlayer(x, y, z) || occupiesPlayer(x, y + 1, z)) return;
+      if (world.has(key(x, y, z)) || world.has(key(x, y + 1, z))) return;
+      world.set(key(x, y, z), "door");
+      world.set(key(x, y + 1, z), "doorTop");
+      edits.set(key(x, y, z), "door");
+      edits.set(key(x, y + 1, z), "doorTop");
+      playPlace();
+      rebuildMeshes();
+      if (mpRPC) {
+        mpRPC.call("block", { op: "p", x, y, z, t: "door" }, mpRPC.Mode.OTHERS);
+        mpRPC.call("block", { op: "p", x, y: y + 1, z, t: "doorTop" }, mpRPC.Mode.OTHERS);
+      }
+      scheduleAutoSave();
+      return;
+    }
+    if (occupiesPlayer(x, y, z)) return;
+    if (world.has(key(x, y, z))) return;
     world.set(key(x, y, z), placedType);
     edits.set(key(x, y, z), placedType);
     playPlace();
@@ -1278,9 +1462,14 @@ async function initMultiplayer() {
       WORLD_SEED = getState("worldSeed");
     }
   RPC.register("block", (data) => {
-    if (data.op === "b") world.delete(key(data.x, data.y, data.z));
+    if (data.op === "b") { world.delete(key(data.x, data.y, data.z)); openDoors.delete(key(data.x, data.y, data.z)); }
     else world.set(key(data.x, data.y, data.z), data.t);
     rebuildMeshes();
+  });
+  RPC.register("door", (data) => {
+    if (data.open) openDoors.add(data.k); else openDoors.delete(data.k);
+    const d = doors.get(data.k);
+    if (d) d.target = data.open ? Math.PI / 2 : 0;
   });
   const avatarMat = new THREE.MeshLambertMaterial({ color: 0xff5566 });
   onPlayerJoin((p) => {
@@ -1411,13 +1600,24 @@ let isMouseLooking = false;
 let lastLookX = 0, lastLookY = 0;
 
 canvas.addEventListener("mousedown", (e) => {
-  if (e.button === 0 && document.pointerLockElement !== canvas) {
+  if (document.pointerLockElement === canvas) {
+    // Pointer-locked FPS mode: left click builds/uses (e.g. opens a door),
+    // right click mines. Held right-click keeps mining via the same
+    // continuous-break flag the on-screen mine button uses.
+    if (e.button === 0) { placeBlock(); }
+    else if (e.button === 2) { breakHeld = true; breakBlock(); lastBreakTime = performance.now(); }
+    return;
+  }
+  if (e.button === 0) {
     isMouseLooking = true;
     lastLookX = e.clientX;
     lastLookY = e.clientY;
   }
 });
-window.addEventListener("mouseup", () => { isMouseLooking = false; });
+window.addEventListener("mouseup", (e) => {
+  isMouseLooking = false;
+  if (e.button === 2) breakHeld = false;
+});
 
 function bindPress(el, onDown, onUp) {
   const start = (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add("pressed"); onDown && onDown(); };
@@ -1666,6 +1866,8 @@ function animate(now) {
   camera.rotation.y = player.yaw;
   camera.rotation.x = player.pitch;
 
+  updateDoorAnimations(dt);
+
   if (!paused && !inventoryOpen) {
     updatePhysics(dt);
     updateRaycastTarget();
@@ -1725,6 +1927,7 @@ async function startGame(mode) {
   if (!loaded) {
     if (mode === "continue") WORLD_SEED = Math.random() * 4000;
     loadedChunks.clear(); treeSpots = []; edits.clear();
+    openDoors.clear();
     ensureChunksLoaded(0, 0);
     rebuildMeshes();
     const spawnY = findClearSpawnY(0, 0);
