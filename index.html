@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="STRATA">
 <title>STRATA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1995,40 +1999,54 @@ function isFullscreenSupported() {
 function isFullscreenActive() {
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
 }
-function toggleFullscreen() {
-  try {
-    if (isFullscreenActive()) {
-      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-    } else {
-      const el = document.documentElement;
-      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-    }
-  } catch (err) { console.error("toggleFullscreen failed:", err); }
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 }
-if (isFullscreenSupported()) {
+function isStandaloneApp() {
+  return window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+}
+function toggleFullscreen() {
+  if (isFullscreenSupported()) {
+    try {
+      if (isFullscreenActive()) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        const el = document.documentElement;
+        (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    } catch (err) { console.error("toggleFullscreen failed:", err); }
+    return;
+  }
+  // Fullscreen API isn't available here - almost always iPhone/iPad Safari,
+  // which refuses to let a webpage go fullscreen no matter what we try.
+  // The only real fix is installing it as a home-screen app (enabled via
+  // the apple-mobile-web-app-capable meta tag), which opens with no
+  // Safari chrome at all - true fullscreen in practice.
+  if (isStandaloneApp()) {
+    showToast("Already running fullscreen as a home screen app");
+  } else if (isIOS()) {
+    showToast("iPhone/iPad Safari won't let a webpage go fullscreen. Tap the Share button, then \"Add to Home Screen\" - opening STRATA from there runs it fullscreen with no browser bar.", true);
+  } else {
+    showToast("Fullscreen isn't supported in this browser", true);
+  }
+}
+(function () {
   const fsBtn = document.getElementById("fullscreenBtn");
   const fsBtnOptions = document.getElementById("fullscreenBtnOptions");
   const fsBtnPause = document.getElementById("fullscreenBtnPause");
-  fsBtn.style.display = "block";
-  fsBtnOptions.style.display = "block";
-  fsBtnPause.style.display = "block";
+  const btns = [fsBtn, fsBtnOptions, fsBtnPause];
+  btns.forEach(b => { b.style.display = "block"; });
   const updateFullscreenBtns = () => {
-    const active = isFullscreenActive();
+    const active = isFullscreenActive() || isStandaloneApp();
     const label = active ? "⛶ EXIT FULLSCREEN" : "⛶ FULLSCREEN";
-    fsBtn.textContent = label;
-    fsBtnOptions.textContent = label;
-    fsBtnPause.textContent = label;
-    fsBtn.classList.toggle("active", active);
-    fsBtnOptions.classList.toggle("active", active);
-    fsBtnPause.classList.toggle("active", active);
+    btns.forEach(b => { b.textContent = label; b.classList.toggle("active", active); });
   };
-  fsBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
-  fsBtnOptions.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
-  fsBtnPause.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
+  btns.forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); }));
   document.addEventListener("fullscreenchange", updateFullscreenBtns);
   document.addEventListener("webkitfullscreenchange", updateFullscreenBtns);
   updateFullscreenBtns();
-}
+})();
 
 handleResize();
 animate(performance.now());
