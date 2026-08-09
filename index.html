@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -290,6 +289,7 @@
     <button id="controlsBtn" class="menuBtn panel">⌨ MAP CONTROLS</button>
     <button id="mainMenuBtn" class="menuBtn panel">⏻ MAIN MENU</button>
     <button id="optionsBtn" class="menuBtn panel">⚙ OPTIONS</button>
+    <button id="fullscreenBtnPause" class="menuBtn panel" style="display:none;">⛶ FULLSCREEN</button>
   </div>
 </div>
 
@@ -355,9 +355,10 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous" async></script>
 <!-- Playroom SDK is now loaded on-demand only when Multiplayer is chosen (see loadPlayroomScript). -->
 <script>
+function bootStrata() {
 "use strict";
 
 const SIZE = 40;
@@ -2007,18 +2008,23 @@ function toggleFullscreen() {
 if (isFullscreenSupported()) {
   const fsBtn = document.getElementById("fullscreenBtn");
   const fsBtnOptions = document.getElementById("fullscreenBtnOptions");
+  const fsBtnPause = document.getElementById("fullscreenBtnPause");
   fsBtn.style.display = "block";
   fsBtnOptions.style.display = "block";
+  fsBtnPause.style.display = "block";
   const updateFullscreenBtns = () => {
     const active = isFullscreenActive();
     const label = active ? "⛶ EXIT FULLSCREEN" : "⛶ FULLSCREEN";
     fsBtn.textContent = label;
     fsBtnOptions.textContent = label;
+    fsBtnPause.textContent = label;
     fsBtn.classList.toggle("active", active);
     fsBtnOptions.classList.toggle("active", active);
+    fsBtnPause.classList.toggle("active", active);
   };
   fsBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
   fsBtnOptions.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
+  fsBtnPause.addEventListener("click", (e) => { e.stopPropagation(); toggleFullscreen(); });
   document.addEventListener("fullscreenchange", updateFullscreenBtns);
   document.addEventListener("webkitfullscreenchange", updateFullscreenBtns);
   updateFullscreenBtns();
@@ -2026,6 +2032,34 @@ if (isFullscreenSupported()) {
 
 handleResize();
 animate(performance.now());
+
+} // end bootStrata
+
+(function () {
+  const playBtnEl = document.getElementById("playBtn");
+  const originalLabel = playBtnEl.textContent;
+  function ready() {
+    return typeof THREE !== "undefined";
+  }
+  if (ready()) {
+    bootStrata();
+    return;
+  }
+  playBtnEl.textContent = "LOADING…";
+  playBtnEl.disabled = true;
+  playBtnEl.style.opacity = "0.6";
+  playBtnEl.style.cursor = "default";
+  const poll = setInterval(function () {
+    if (ready()) {
+      clearInterval(poll);
+      bootStrata();
+      playBtnEl.textContent = originalLabel;
+      playBtnEl.disabled = false;
+      playBtnEl.style.opacity = "";
+      playBtnEl.style.cursor = "pointer";
+    }
+  }, 20);
+})();
 </script>
 </body>
 </html>
