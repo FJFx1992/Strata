@@ -675,16 +675,23 @@ function unloadChunk(cx, cz) {
     for (let z = z0; z < z0 + CHUNK_SIZE; z++)
       for (let y = 0; y < MAXY; y++) world.delete(key(x, y, z));
 }
-// Loads chunks near (px,pz); unloads far ones too, unless in multiplayer
-// (everyone needs to keep seeing the same shared area). Returns true if the
-// world actually changed, so the caller knows whether to rebuild meshes.
+// Loads chunks near (px,pz) asynchronously: rather than generating every
+// missing chunk in one go (which can cause a frame hitch near world edges),
+// missing chunks are queued and generated a few at a time, spread across
+// frames by processChunkQueue(). Unloading far chunks is cheap (just a Map
+// delete) so that part still happens immediately, synchronously.
+const pendingChunks = new Set();   // chunk keys queued or currently generating
+const chunkQueue = [];             // ordered queue of chunk keys to generate
 function ensureChunksLoaded(px, pz) {
   const ccx = Math.floor(px / CHUNK_SIZE), ccz = Math.floor(pz / CHUNK_SIZE);
   let changed = false;
   for (let dx = -LOAD_R; dx <= LOAD_R; dx++) {
     for (let dz = -LOAD_R; dz <= LOAD_R; dz++) {
       const ck = chunkKey(ccx + dx, ccz + dz);
-      if (!loadedChunks.has(ck)) { genChunk(ccx + dx, ccz + dz); loadedChunks.add(ck); changed = true; }
+      if (!loadedChunks.has(ck) && !pendingChunks.has(ck)) {
+        pendingChunks.add(ck);
+        chunkQueue.push(ck);
+      }
     }
   }
   if (!mpActive) {
@@ -696,6 +703,41 @@ function ensureChunksLoaded(px, pz) {
     }
   }
   return changed;
+}
+// Called once per frame from animate(). Generates queued chunks until a
+// small time budget is used up, so a burst of newly-visible edge chunks
+// (e.g. after a teleport or fast movement) streams in over several frames
+// instead of freezing the game for one long frame.
+const CHUNK_FRAME_BUDGET_MS = 6;
+function processChunkQueue() {
+  if (!chunkQueue.length) return false;
+  const start = performance.now();
+  let changed = false;
+  while (chunkQueue.length && performance.now() - start < CHUNK_FRAME_BUDGET_MS) {
+    const ck = chunkQueue.shift();
+    pendingChunks.delete(ck);
+    if (loadedChunks.has(ck)) continue; // already loaded (e.g. duplicate queue entry)
+    const [cx, cz] = ck.split(",").map(Number);
+    genChunk(cx, cz);
+    loadedChunks.add(ck);
+    changed = true;
+  }
+  return changed;
+}
+// Immediately generates every chunk still sitting in the queue, with no
+// time budget. Used only at game start / on load, where the world around
+// the spawn point must exist before the player can be placed in it -
+// everywhere else, processChunkQueue()'s budgeted draining is used instead
+// so edge-of-world generation doesn't freeze a frame.
+function flushChunkQueue() {
+  while (chunkQueue.length) {
+    const ck = chunkQueue.shift();
+    pendingChunks.delete(ck);
+    if (loadedChunks.has(ck)) continue;
+    const [cx, cz] = ck.split(",").map(Number);
+    genChunk(cx, cz);
+    loadedChunks.add(ck);
+  }
 }
 function markLoadedChunksFromWorld() {
   loadedChunks.clear();
@@ -1420,6 +1462,7 @@ function loadGame() {
     if (Array.isArray(save.openDoors)) save.openDoors.forEach(k => openDoors.add(k));
     const px = save.pos ? save.pos.x : 0, pz = save.pos ? save.pos.z : 0;
     ensureChunksLoaded(Math.floor(px), Math.floor(pz));
+    flushChunkQueue();
     rebuildMeshes();
     if (save.pos) player.pos.set(save.pos.x, save.pos.y, save.pos.z);
     if (typeof save.yaw === "number") player.yaw = save.yaw;
@@ -1993,8 +2036,12 @@ function animate(now) {
     chunkTimer += dt;
     if (chunkTimer > 0.6) {
       chunkTimer = 0;
-      if (ensureChunksLoaded(Math.floor(player.pos.x), Math.floor(player.pos.z))) rebuildMeshes();
+      ensureChunksLoaded(Math.floor(player.pos.x), Math.floor(player.pos.z));
     }
+    // Drain a time-budgeted slice of the chunk generation queue every
+    // frame (not just on the 0.6s timer) so new edge chunks stream in
+    // smoothly as you approach the world's loaded boundary.
+    if (processChunkQueue()) rebuildMeshes();
   }
 
   if (mpActive) {
@@ -2041,6 +2088,7 @@ async function startGame(mode) {
     loadedChunks.clear(); treeSpots = []; edits.clear();
     openDoors.clear();
     ensureChunksLoaded(0, 0);
+    flushChunkQueue();
     rebuildMeshes();
     const spawnY = findClearSpawnY(0, 0);
     player.pos.set(0.5, spawnY, 0.5);
