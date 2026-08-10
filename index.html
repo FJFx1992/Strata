@@ -1195,14 +1195,15 @@ const player = {
 };
 
 const input = { joyX: 0, joyY: 0, lookX: 0, lookY: 0, jumpHeld: false, keys: {} };
-// Keyboard jump is edge-triggered (one queued jump per keydown) rather than
-// using input.jumpHeld's continuous "held" state - on some setups (e.g.
-// Steam Deck mapping a button to Space) the key can read as held down for
-// the whole press, which with continuous jumpHeld caused the player to
-// re-jump the instant they touched the ground, over and over. Touch/gamepad
-// still use input.jumpHeld continuously since that hasn't been reported as
-// an issue there.
-let keyboardJumpQueued = false;
+// Jump is edge-triggered (one queued jump per press) rather than a
+// continuous "held" state - both keyboard and gamepad jump buttons queue
+// into this single flag. Continuous jumpHeld caused re-jumping the instant
+// the player touched ground while still pressed/held, and the old gamepad
+// code never reset jumpHeld to false on release at all, so a single
+// gamepad press caused permanent bouncing. Touch's on-screen jump button
+// still uses input.jumpHeld continuously (press/release), which is fine
+// since it correctly resets on release.
+let jumpQueued = false;
 
 function keyboardVector() {
   let x = 0, y = 0;
@@ -1213,7 +1214,7 @@ function keyboardVector() {
   return { x, y };
 }
 
-let lastLB = false, lastRB = false, lastBreakBtn = false, lastPlaceBtn = false, lastStartBtn = false;
+let lastLB = false, lastRB = false, lastBreakBtn = false, lastPlaceBtn = false, lastStartBtn = false, lastJumpBtn = false;
 
 function updateGamepad() {
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -1266,7 +1267,13 @@ function updateGamepad() {
       dbgY.textContent = ry.toFixed(2);
     }
 
-    if (gp.buttons[0] && gp.buttons[0].pressed) input.jumpHeld = true;
+    // Was: `if (gp.buttons[0] && gp.buttons[0].pressed) input.jumpHeld = true;` - that
+    // set jumpHeld true on press but NEVER set it back to false on release, so once a
+    // gamepad's jump button was pressed once, the player kept bouncing forever. Now
+    // edge-triggered like the other gamepad buttons below, queuing a single jump per press.
+    const jumpBtn = gp.buttons[0] ? gp.buttons[0].pressed : false;
+    if (jumpBtn && !lastJumpBtn) jumpQueued = true;
+    lastJumpBtn = jumpBtn;
 
     const r2 = gp.buttons[7] ? gp.buttons[7].pressed : false;
     if (r2 && !lastBreakBtn) { breakBlock(); lastBreakTime = performance.now(); }
@@ -1337,8 +1344,8 @@ function updatePhysics(dt) {
   tryMoveAxis("y", player.vel.y * dt);
   if (player.onGround) player.vel.y = 0;
 
-  if ((input.jumpHeld || keyboardJumpQueued) && player.onGround) { player.vel.y = JUMP_VEL; player.onGround = false; playJump(); }
-  keyboardJumpQueued = false; // keyboard jump is single-press: consumed every frame so holding Space can't re-trigger on landing
+  if ((input.jumpHeld || jumpQueued) && player.onGround) { player.vel.y = JUMP_VEL; player.onGround = false; playJump(); }
+  jumpQueued = false; // consumed every frame so a held key/button can't keep re-triggering jumps on landing
 
   const moved = Math.hypot(dx, dz);
   if (moved > 0 && player.onGround) {
@@ -1867,7 +1874,7 @@ function togglePause() {
   document.body.classList.toggle("paused", paused);
   if (paused) {
     if (document.pointerLockElement === canvas) document.exitPointerLock();
-    input.jumpHeld = false; keyboardJumpQueued = false; keyboardMineHeld = false; breakHeld = false; isMouseLooking = false;
+    input.jumpHeld = false; jumpQueued = false; keyboardMineHeld = false; breakHeld = false; isMouseLooking = false;
     controlsScreenEl.style.display = "none";
     optionsScreenEl.style.display = "none";
     pauseScreenEl.style.display = "flex";
@@ -2023,7 +2030,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyE") { toggleInventory(); return; }
   if (paused || inventoryOpen) return;
 
-  if (e.code === keyBindings.jump && !e.repeat) keyboardJumpQueued = true;
+  if (e.code === keyBindings.jump && !e.repeat) jumpQueued = true;
   if (e.code === keyBindings.mine && !e.repeat) startMining();
   if (e.code === keyBindings.place && !e.repeat) placeBlock();
   for (let i = 1; i <= 5; i++) {
@@ -2035,6 +2042,14 @@ window.addEventListener("keyup", (e) => {
   if (e.code === keyBindings.mine) stopMining();
 });
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+// Desktop: scroll wheel cycles the hotbar selection, since the hotbar can
+// run wider than the screen and not every block is reachable by clicking.
+window.addEventListener("wheel", (e) => {
+  if (!started || paused || inventoryOpen) return;
+  e.preventDefault();
+  selectBlockByIndex(selectedBlockIdx + (e.deltaY > 0 ? 1 : -1));
+}, { passive: false });
 
 let cycleT = 0.28;
 function updateDayNight(dt) {
