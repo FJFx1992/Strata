@@ -219,6 +219,11 @@
     border-top-color:#ffe3a3; border-left-color:#ffe3a3;
     border-bottom-color:var(--accent-dark); border-right-color:var(--accent-dark);
   }
+  .menuBtn.platformSelected{
+    background:var(--good);
+    border-top-color:#c8f0c0; border-left-color:#c8f0c0;
+    border-bottom-color:#3d7a35; border-right-color:#3d7a35;
+  }
   #controlsList{
     display:flex; flex-direction:column; gap:10px; width:280px;
     max-height:46vh; overflow-y:auto; padding-right:4px;
@@ -347,6 +352,11 @@
   <div id="logo">STRA<span>TA</span></div>
   <div id="tagline">Universal & Steam Deck Web Edition</div>
   <input id="playerNameInput" class="panel" type="text" maxlength="16" placeholder="Your name" style="font-family:var(--font-b);font-size:14px;color:#fff;background:var(--panel-dark);text-align:center;padding:10px;width:200px;outline:none;">
+  <div id="platformRow" style="display:flex;gap:8px;">
+    <button id="platformDesktopBtn" class="menuBtn panel" style="width:auto;font-size:9px;padding:10px 12px;">🖥 DESKTOP</button>
+    <button id="platformSteamDeckBtn" class="menuBtn panel" style="width:auto;font-size:9px;padding:10px 12px;">🎮 STEAM DECK</button>
+    <button id="platformMobileBtn" class="menuBtn panel" style="width:auto;font-size:9px;padding:10px 12px;">📱 MOBILE</button>
+  </div>
   <button id="playBtn" class="panel">▶ PLAY</button>
   <div id="startButtons">
     <button id="continueBtn" class="menuBtn panel" style="display:none;">📂 CONTINUE</button>
@@ -1185,6 +1195,14 @@ const player = {
 };
 
 const input = { joyX: 0, joyY: 0, lookX: 0, lookY: 0, jumpHeld: false, keys: {} };
+// Keyboard jump is edge-triggered (one queued jump per keydown) rather than
+// using input.jumpHeld's continuous "held" state - on some setups (e.g.
+// Steam Deck mapping a button to Space) the key can read as held down for
+// the whole press, which with continuous jumpHeld caused the player to
+// re-jump the instant they touched the ground, over and over. Touch/gamepad
+// still use input.jumpHeld continuously since that hasn't been reported as
+// an issue there.
+let keyboardJumpQueued = false;
 
 function keyboardVector() {
   let x = 0, y = 0;
@@ -1319,7 +1337,8 @@ function updatePhysics(dt) {
   tryMoveAxis("y", player.vel.y * dt);
   if (player.onGround) player.vel.y = 0;
 
-  if (input.jumpHeld && player.onGround) { player.vel.y = JUMP_VEL; player.onGround = false; playJump(); }
+  if ((input.jumpHeld || keyboardJumpQueued) && player.onGround) { player.vel.y = JUMP_VEL; player.onGround = false; playJump(); }
+  keyboardJumpQueued = false; // keyboard jump is single-press: consumed every frame so holding Space can't re-trigger on landing
 
   const moved = Math.hypot(dx, dz);
   if (moved > 0 && player.onGround) {
@@ -1848,7 +1867,7 @@ function togglePause() {
   document.body.classList.toggle("paused", paused);
   if (paused) {
     if (document.pointerLockElement === canvas) document.exitPointerLock();
-    input.jumpHeld = false; keyboardMineHeld = false; breakHeld = false; isMouseLooking = false;
+    input.jumpHeld = false; keyboardJumpQueued = false; keyboardMineHeld = false; breakHeld = false; isMouseLooking = false;
     controlsScreenEl.style.display = "none";
     optionsScreenEl.style.display = "none";
     pauseScreenEl.style.display = "flex";
@@ -1898,6 +1917,40 @@ sensitivityBtn.addEventListener("click", (e) => {
   try { localStorage.setItem("strataLookSensitivity", SENSITIVITY_LEVELS[sensitivityIdx]); } catch (err) {}
   applySensitivityLabel();
 });
+
+/* ---------- Platform selection (start screen) ----------
+   Desktop and Steam Deck use keyboard/mouse or a controller, so touch
+   controls only get in the way - selecting either turns them off. Mobile
+   turns them back on. The choice is remembered for next time. */
+const PLATFORM_BTNS = {
+  desktop: document.getElementById("platformDesktopBtn"),
+  steamdeck: document.getElementById("platformSteamDeckBtn"),
+  mobile: document.getElementById("platformMobileBtn")
+};
+function applyPlatformSelection(platform) {
+  Object.keys(PLATFORM_BTNS).forEach(p => PLATFORM_BTNS[p].classList.toggle("platformSelected", p === platform));
+  touchControlsOn = platform === "mobile";
+  try {
+    localStorage.setItem("strataPlatform", platform);
+    localStorage.setItem("strataTouchControls", touchControlsOn ? "on" : "off");
+  } catch (err) {}
+  applyTouchControlsVisibility();
+}
+Object.keys(PLATFORM_BTNS).forEach(p => {
+  PLATFORM_BTNS[p].addEventListener("click", (e) => { e.stopPropagation(); applyPlatformSelection(p); });
+});
+(function initPlatformSelection() {
+  let saved = null;
+  try { saved = localStorage.getItem("strataPlatform"); } catch (err) {}
+  if (!saved || !PLATFORM_BTNS[saved]) {
+    // No saved choice yet - guess from the touch controls default so we
+    // don't silently override a first-time player's likely device.
+    saved = ("ontouchstart" in window) ? "mobile" : "desktop";
+  }
+  applyPlatformSelection(saved);
+})();
+/* ---------- End platform selection ---------- */
+
 document.getElementById("optionsBtn").addEventListener("click", (e) => {
   e.stopPropagation();
   pauseScreenEl.style.display = "none";
@@ -1970,7 +2023,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyE") { toggleInventory(); return; }
   if (paused || inventoryOpen) return;
 
-  if (e.code === keyBindings.jump) input.jumpHeld = true;
+  if (e.code === keyBindings.jump && !e.repeat) keyboardJumpQueued = true;
   if (e.code === keyBindings.mine && !e.repeat) startMining();
   if (e.code === keyBindings.place && !e.repeat) placeBlock();
   for (let i = 1; i <= 5; i++) {
@@ -1979,7 +2032,6 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => {
   input.keys[e.code] = false;
-  if (e.code === keyBindings.jump) input.jumpHeld = false;
   if (e.code === keyBindings.mine) stopMining();
 });
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
