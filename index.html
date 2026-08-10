@@ -283,7 +283,7 @@
     <div id="pauseBtn" class="iconBtn round accent">⏸</div>
     <div id="muteBtn" class="iconBtn round accent">🔊</div>
   </div>
-  <div id="tips">Left Stick/WASD: Move • Right Stick/Mouse: Look • R2/⛏: Mine • L2/▦: Build/Use Door</div>
+  <div id="tips">Left Stick/WASD: Move • Right Stick/Mouse: Look • R2/⛏: Mine • L2/🔨: Build/Use Door</div>
 
   <div id="hotbar"></div>
 
@@ -295,7 +295,7 @@
     <div id="btnJump" class="actBtn round accent">⤒</div>
     <div id="actionsRow">
       <div id="btnBreak" class="actBtn round accent">⛏</div>
-      <div id="btnPlace" class="actBtn round accent">▦</div>
+      <div id="btnPlace" class="actBtn round accent">🔨</div>
     </div>
   </div>
 </div>
@@ -364,7 +364,7 @@
       <b>Look:</b> Right Stick (Axes 2 & 3) / Trackpad / Pointer Lock / Right Touch Joystick<br>
       <b>Jump:</b> A Button / Space / ⤒ Button<br>
       <b>Mine:</b> R2 / Right Click / ⛏ Button<br>
-      <b>Build:</b> L2 / Left Click / ▦ Button<br>
+      <b>Build:</b> L2 / Left Click / 🔨 Button<br>
       <b>Open/Close Door:</b> Aim at a door and use the Build action<br>
       <b>Cycle Hotbar:</b> L1 & R1 / 1-5 keys<br>
       <b>Pause / Map Controls:</b> Esc / Start / ⏸ Button<br>
@@ -1370,14 +1370,14 @@ function updateRaycastTarget() {
     const aimingDoor = doorBaseKey(currentTarget.hit.x, currentTarget.hit.y, currentTarget.hit.z) !== null;
     cross.classList.toggle("door", aimingDoor);
     if (btnPlace) {
-      btnPlace.textContent = aimingDoor ? "🚪" : "▦";
+      btnPlace.textContent = aimingDoor ? "🚪" : "🔨";
       btnPlace.classList.toggle("doorMode", aimingDoor);
     }
   } else {
     highlight.visible = false;
     cross.classList.remove("active");
     cross.classList.remove("door");
-    if (btnPlace) { btnPlace.textContent = "▦"; btnPlace.classList.remove("doorMode"); }
+    if (btnPlace) { btnPlace.textContent = "🔨"; btnPlace.classList.remove("doorMode"); }
   }
 }
 
